@@ -15,14 +15,12 @@ const clientSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   phone: z.string().min(1, "Telefone é obrigatório"),
   birth_date: z.string().optional(),
-  code: z.string().optional(),
 });
 
 type ClientInput = {
   name: string;
   phone: string;
   birth_date?: string;
-  code?: string;
 };
 
 type Client = {
@@ -108,9 +106,6 @@ export default function Clients() {
     const birthDate = formData.get("birth_date") as string;
     if (birthDate) rawData.birth_date = birthDate;
 
-    const code = formData.get("code") as string;
-    if (code) rawData.code = code;
-
     try {
       clientSchema.parse(rawData);
       if (editingClient) {
@@ -143,10 +138,6 @@ export default function Clients() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="code">Código</Label>
-                <Input id="code" name="code" defaultValue={editingClient?.code || ""} />
-              </div>
-              <div>
                 <Label htmlFor="name">Nome *</Label>
                 <Input id="name" name="name" required defaultValue={editingClient?.name || ""} />
               </div>
@@ -158,6 +149,13 @@ export default function Clients() {
                 <Label htmlFor="birth_date">Data de Nascimento</Label>
                 <Input id="birth_date" name="birth_date" type="date" defaultValue={editingClient?.birth_date || ""} />
               </div>
+              {editingClient && (
+                <div>
+                  <Label>Código</Label>
+                  <Input value={editingClient.code || "Gerado automaticamente"} disabled />
+                  <p className="text-xs text-muted-foreground mt-1">Código gerado automaticamente pelo sistema</p>
+                </div>
+              )}
               <Button type="submit" className="w-full">
                 {editingClient ? "Atualizar" : "Criar"}
               </Button>

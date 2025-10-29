@@ -115,7 +115,6 @@ export default function SupplySelector({ quoteId, onCostCalculated }: SupplySele
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const data = {
-      code: formData.get("code") as string || undefined,
       name: formData.get("name") as string,
       cost_value: parseFloat(formData.get("cost_value") as string),
     };
@@ -224,10 +223,6 @@ export default function SupplySelector({ quoteId, onCostCalculated }: SupplySele
               <TabsContent value="create">
                 <form onSubmit={handleCreateSupply} className="space-y-4">
                   <div>
-                    <Label htmlFor="code">Código do Insumo</Label>
-                    <Input id="code" name="code" />
-                  </div>
-                  <div>
                     <Label htmlFor="name">Nome do Insumo *</Label>
                     <Input id="name" name="name" required />
                   </div>
@@ -235,6 +230,7 @@ export default function SupplySelector({ quoteId, onCostCalculated }: SupplySele
                     <Label htmlFor="cost_value">Valor de Custo *</Label>
                     <Input id="cost_value" name="cost_value" type="number" step="0.01" min="0" required />
                   </div>
+                  <p className="text-xs text-muted-foreground">O código do insumo será gerado automaticamente</p>
                   <Button type="submit" className="w-full">
                     <Plus className="mr-2 h-4 w-4" />
                     Cadastrar Insumo

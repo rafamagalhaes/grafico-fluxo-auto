@@ -71,7 +71,6 @@ export default function Orders() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const data = {
-      code: formData.get("code"),
       description: formData.get("description"),
       delivery_date: formData.get("delivery_date"),
       total_value: parseFloat(formData.get("total_value") as string),
@@ -110,10 +109,6 @@ export default function Orders() {
               <DialogTitle>Novo Pedido</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="code">Código *</Label>
-                <Input id="code" name="code" required />
-              </div>
               <div>
                 <Label htmlFor="description">Descrição *</Label>
                 <Textarea id="description" name="description" required />
