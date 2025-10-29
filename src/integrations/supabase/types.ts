@@ -17,7 +17,7 @@ export type Database = {
       active_orders: {
         Row: {
           advance_value: number | null
-          code: string
+          code: string | null
           created_at: string | null
           delivery_date: string
           description: string
@@ -31,7 +31,7 @@ export type Database = {
         }
         Insert: {
           advance_value?: number | null
-          code: string
+          code?: string | null
           created_at?: string | null
           delivery_date: string
           description: string
@@ -45,7 +45,7 @@ export type Database = {
         }
         Update: {
           advance_value?: number | null
-          code?: string
+          code?: string | null
           created_at?: string | null
           delivery_date?: string
           description?: string
@@ -193,7 +193,7 @@ export type Database = {
         Row: {
           approved: boolean | null
           client_id: string
-          code: string
+          code: string | null
           cost_value: number
           created_at: string | null
           delivery_date: string
@@ -206,7 +206,7 @@ export type Database = {
         Insert: {
           approved?: boolean | null
           client_id: string
-          code: string
+          code?: string | null
           cost_value?: number
           created_at?: string | null
           delivery_date: string
@@ -219,7 +219,7 @@ export type Database = {
         Update: {
           approved?: boolean | null
           client_id?: string
-          code?: string
+          code?: string | null
           cost_value?: number
           created_at?: string | null
           delivery_date?: string
