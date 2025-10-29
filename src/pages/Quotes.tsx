@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, CheckCircle, ArrowRight, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import SupplySelector from "@/components/SupplySelector";
 
 type Quote = {
@@ -213,13 +214,22 @@ export default function Quotes() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
-                          variant="ghost"
-                          onClick={() => setEditingQuoteId(quote.id)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                onClick={() => setEditingQuoteId(quote.id)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Gerenciar Insumos</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                         {!quote.approved && (
                           <Button size="sm" onClick={() => approveMutation.mutate(quote.id)}>
                             <CheckCircle className="mr-1 h-4 w-4" />
