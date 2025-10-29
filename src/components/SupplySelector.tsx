@@ -28,9 +28,10 @@ type QuoteSupply = {
 type SupplySelectorProps = {
   quoteId?: string;
   onCostCalculated?: (totalCost: number) => void;
+  onClose?: () => void;
 };
 
-export default function SupplySelector({ quoteId, onCostCalculated }: SupplySelectorProps) {
+export default function SupplySelector({ quoteId, onCostCalculated, onClose }: SupplySelectorProps) {
   const [open, setOpen] = useState(false);
   const [selectedSupply, setSelectedSupply] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
@@ -133,22 +134,20 @@ export default function SupplySelector({ quoteId, onCostCalculated }: SupplySele
     (e.target as HTMLFormElement).reset();
   };
 
-  const calculateTotalCost = () => {
+  const totalCost = useMemo(() => {
     if (!quoteSupplies) return 0;
     const total = quoteSupplies.reduce((sum, qs) => {
       const cost = qs.adjusted_cost ?? qs.supplies.cost_value;
       return sum + (cost * qs.quantity);
     }, 0);
-    
+
     // Notify parent component of cost change
     if (onCostCalculated) {
       onCostCalculated(total);
     }
-    
-    return total;
-  };
 
-  const totalCost = calculateTotalCost();
+    return total;
+  }, [quoteSupplies, onCostCalculated]);
   
   const selectedSupplyData = supplies?.find(s => s.id === selectedSupply);
   const unitCost = adjustedCost ? parseFloat(adjustedCost) : (selectedSupplyData?.cost_value || 0);
@@ -291,12 +290,14 @@ export default function SupplySelector({ quoteId, onCostCalculated }: SupplySele
           </Table>
           
           {/* Caixa de Total */}
-          <div className="bg-muted p-4 border-t">
-            <div className="flex justify-end items-center gap-4">
-              <Label className="text-base font-semibold">Valor Total de Custo:</Label>
-              <div className="text-3xl font-bold text-primary bg-background px-6 py-2 rounded-md border-2 border-primary">
-                R$ {totalCost.toFixed(2)}
+          <div className="bg-muted p-4 border-t flex justify-between items-center">
+                        <div className="flex flex-col">
+                <Label className="text-base font-semibold">Valor Total de Custo:</Label>
+                <div className="text-3xl font-bold text-primary bg-background px-6 py-2 rounded-md border-2 border-primary">
+                  R$ {totalCost.toFixed(2)}
+                </div>
               </div>
+              <Button onClick={onClose} className="bg-green-500 hover:bg-green-600">Finalizar</Button>
             </div>
           </div>
         </div>
