@@ -18,6 +18,13 @@ const clientSchema = z.object({
   code: z.string().optional(),
 });
 
+type ClientInput = {
+  name: string;
+  phone: string;
+  birth_date?: string;
+  code?: string;
+};
+
 type Client = {
   id: string;
   code: string | null;
@@ -45,7 +52,7 @@ export default function Clients() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof clientSchema>) => {
+    mutationFn: async (data: ClientInput) => {
       const { error } = await supabase.from("clients").insert([data]);
       if (error) throw error;
     },
@@ -60,7 +67,7 @@ export default function Clients() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: z.infer<typeof clientSchema> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: ClientInput }) => {
       const { error } = await supabase.from("clients").update(data).eq("id", id);
       if (error) throw error;
     },
@@ -92,19 +99,24 @@ export default function Clients() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const data = {
-      name: (formData.get("name") as string) || "",
-      phone: (formData.get("phone") as string) || "",
-      birth_date: (formData.get("birth_date") as string) || undefined,
-      code: (formData.get("code") as string) || undefined,
+    
+    const rawData: any = {
+      name: formData.get("name") as string,
+      phone: formData.get("phone") as string,
     };
 
+    const birthDate = formData.get("birth_date") as string;
+    if (birthDate) rawData.birth_date = birthDate;
+
+    const code = formData.get("code") as string;
+    if (code) rawData.code = code;
+
     try {
-      clientSchema.parse(data);
+      clientSchema.parse(rawData);
       if (editingClient) {
-        updateMutation.mutate({ id: editingClient.id, data });
+        updateMutation.mutate({ id: editingClient.id, data: rawData });
       } else {
-        createMutation.mutate(data);
+        createMutation.mutate(rawData);
       }
     } catch (error) {
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
