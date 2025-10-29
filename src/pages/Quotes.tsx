@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, CheckCircle, XCircle, ArrowRight } from "lucide-react";
+import { Plus, CheckCircle, ArrowRight, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+import SupplySelector from "@/components/SupplySelector";
 
 type Quote = {
   id: string;
@@ -27,6 +28,7 @@ type Quote = {
 
 export default function Quotes() {
   const [open, setOpen] = useState(false);
+  const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -155,8 +157,9 @@ export default function Quotes() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="cost_value">Valor de Custo *</Label>
-                  <Input id="cost_value" name="cost_value" type="number" step="0.01" required />
+                  <Label htmlFor="cost_value">Valor de Custo</Label>
+                  <Input id="cost_value" name="cost_value" type="number" step="0.01" defaultValue="0" />
+                  <p className="text-xs text-muted-foreground mt-1">Você pode definir o custo através dos insumos</p>
                 </div>
                 <div>
                   <Label htmlFor="sale_value">Valor de Venda *</Label>
@@ -210,6 +213,13 @@ export default function Quotes() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => setEditingQuoteId(quote.id)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         {!quote.approved && (
                           <Button size="sm" onClick={() => approveMutation.mutate(quote.id)}>
                             <CheckCircle className="mr-1 h-4 w-4" />
@@ -231,6 +241,15 @@ export default function Quotes() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!editingQuoteId} onOpenChange={(open) => !open && setEditingQuoteId(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Insumos do Orçamento</DialogTitle>
+          </DialogHeader>
+          <SupplySelector quoteId={editingQuoteId || undefined} />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

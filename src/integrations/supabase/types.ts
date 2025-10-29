@@ -147,6 +147,48 @@ export type Database = {
           },
         ]
       }
+      quote_supplies: {
+        Row: {
+          adjusted_cost: number | null
+          created_at: string | null
+          id: string
+          quantity: number
+          quote_id: string
+          supply_id: string
+        }
+        Insert: {
+          adjusted_cost?: number | null
+          created_at?: string | null
+          id?: string
+          quantity?: number
+          quote_id: string
+          supply_id: string
+        }
+        Update: {
+          adjusted_cost?: number | null
+          created_at?: string | null
+          id?: string
+          quantity?: number
+          quote_id?: string
+          supply_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_supplies_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quote_supplies_supply_id_fkey"
+            columns: ["supply_id"]
+            isOneToOne: false
+            referencedRelation: "supplies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotes: {
         Row: {
           approved: boolean | null
@@ -196,6 +238,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      supplies: {
+        Row: {
+          code: string | null
+          cost_value: number
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          code?: string | null
+          cost_value?: number
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string | null
+          cost_value?: number
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
