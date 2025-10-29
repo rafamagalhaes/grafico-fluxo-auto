@@ -29,6 +29,7 @@ type Quote = {
 
 export default function Quotes() {
   const [open, setOpen] = useState(false);
+  const [costValue, setCostValue] = useState<number>(0);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -100,7 +101,7 @@ export default function Quotes() {
       client_id: formData.get("client_id"),
       description: formData.get("description"),
       delivery_date: formData.get("delivery_date"),
-      cost_value: parseFloat(formData.get("cost_value") as string) || 0,
+      cost_value: costValue, // Usar o valor do estado
       sale_value: parseFloat(formData.get("sale_value") as string),
     };
     createMutation.mutate(data);
@@ -151,8 +152,40 @@ export default function Quotes() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="cost_value">Valor de Custo</Label>
-                  <Input id="cost_value" name="cost_value" type="number" step="0.01" defaultValue="0" />
-                  <p className="text-xs text-muted-foreground mt-1">Você pode definir o custo através dos insumos</p>
+                  <div className="flex gap-2">
+                    <Input 
+                      id="cost_value" 
+                      name="cost_value" 
+                      type="number" 
+                      step="0.01" 
+                      value={costValue.toFixed(2)} 
+                      readOnly 
+                    />
+                    <Dialog open={!!editingQuoteId} onOpenChange={(open) => !open && setEditingQuoteId(null)}>
+                        <DialogTrigger asChild>
+                            <Button 
+                                type="button" 
+                                variant="outline" 
+                                onClick={() => setEditingQuoteId("new")} // Usar um ID temporário para novo orçamento
+                            >
+                                Selecionar Insumos
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle>Gerenciar Custos e Insumos</DialogTitle>
+                            </DialogHeader>
+                            <SupplySelector 
+                                quoteId={editingQuoteId === "new" ? undefined : editingQuoteId}
+                                onCostCalculated={(totalCost) => {
+                                    setCostValue(totalCost);
+                                }}
+                                onClose={() => setEditingQuoteId(null)}
+                            />
+                        </DialogContent>
+                    </Dialog>
+                </div>
+                  <p className="text-xs text-muted-foreground mt-1">Custo total calculado com base nos insumos selecionados.</p>
                 </div>
                 <div>
                   <Label htmlFor="sale_value">Valor de Venda *</Label>
@@ -244,28 +277,7 @@ export default function Quotes() {
         </CardContent>
       </Card>
 
-      <Dialog open={!!editingQuoteId} onOpenChange={(open) => !open && setEditingQuoteId(null)}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Gerenciar Custos e Insumos</DialogTitle>
-          </DialogHeader>
-          <SupplySelector 
-            quoteId={editingQuoteId || undefined}
-            onCostCalculated={(totalCost) => {
-              // Atualizar o custo do orçamento no banco
-              if (editingQuoteId) {
-                supabase
-                  .from("quotes")
-                  .update({ cost_value: totalCost })
-                  .eq("id", editingQuoteId)
-                  .then(() => {
-                    queryClient.invalidateQueries({ queryKey: ["quotes"] });
-                  });
-              }
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      
     </div>
   );
 }
