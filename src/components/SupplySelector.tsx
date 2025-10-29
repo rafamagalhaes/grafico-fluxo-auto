@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Supply = {
   id: string;
@@ -32,7 +32,9 @@ type SupplySelectorProps = {
 
 export default function SupplySelector({ quoteId, onCostCalculated }: SupplySelectorProps) {
   const [open, setOpen] = useState(false);
-  const [selectedSupplies, setSelectedSupplies] = useState<Map<string, { quantity: number; adjustedCost?: number }>>(new Map());
+  const [selectedSupply, setSelectedSupply] = useState<string>("");
+  const [quantity, setQuantity] = useState<number>(1);
+  const [adjustedCost, setAdjustedCost] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -97,18 +99,27 @@ export default function SupplySelector({ quoteId, onCostCalculated }: SupplySele
     },
   });
 
-  const handleAddSupply = (supplyId: string) => {
-    const quantity = selectedSupplies.get(supplyId)?.quantity || 1;
-    const adjustedCost = selectedSupplies.get(supplyId)?.adjustedCost;
-    
-    if (quoteId) {
-      addQuoteSupplyMutation.mutate({
-        quote_id: quoteId,
-        supply_id: supplyId,
-        quantity,
-        adjusted_cost: adjustedCost,
+  const handleAddSupply = () => {
+    if (!selectedSupply || !quoteId) {
+      toast({ 
+        title: "Erro", 
+        description: "Selecione um insumo",
+        variant: "destructive"
       });
+      return;
     }
+
+    addQuoteSupplyMutation.mutate({
+      quote_id: quoteId,
+      supply_id: selectedSupply,
+      quantity,
+      adjusted_cost: adjustedCost ? parseFloat(adjustedCost) : undefined,
+    });
+    
+    // Reset form
+    setSelectedSupply("");
+    setQuantity(1);
+    setAdjustedCost("");
   };
 
   const handleCreateSupply = (e: React.FormEvent<HTMLFormElement>) => {
@@ -124,134 +135,134 @@ export default function SupplySelector({ quoteId, onCostCalculated }: SupplySele
 
   const calculateTotalCost = () => {
     if (!quoteSupplies) return 0;
-    return quoteSupplies.reduce((total, qs) => {
+    const total = quoteSupplies.reduce((sum, qs) => {
       const cost = qs.adjusted_cost ?? qs.supplies.cost_value;
-      return total + (cost * qs.quantity);
+      return sum + (cost * qs.quantity);
     }, 0);
+    
+    // Notify parent component of cost change
+    if (onCostCalculated) {
+      onCostCalculated(total);
+    }
+    
+    return total;
   };
 
   const totalCost = calculateTotalCost();
+  
+  const selectedSupplyData = supplies?.find(s => s.id === selectedSupply);
+  const unitCost = adjustedCost ? parseFloat(adjustedCost) : (selectedSupplyData?.cost_value || 0);
+  const lineTotal = unitCost * quantity;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <Label className="text-base font-semibold">Insumos do Orçamento</Label>
-          <p className="text-sm text-muted-foreground">Gerencie os insumos e custos</p>
+    <div className="space-y-6">
+      <div>
+        <Label className="text-lg font-semibold">Custos do Orçamento</Label>
+        <p className="text-sm text-muted-foreground">Adicione os insumos para calcular o custo total</p>
+      </div>
+
+      {/* Container de Adição de Insumo */}
+      <div className="border rounded-lg p-4 space-y-4 bg-card">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="md:col-span-2">
+            <Label htmlFor="supply_select">Nome do Insumo *</Label>
+            <Select value={selectedSupply} onValueChange={setSelectedSupply} disabled={!quoteId}>
+              <SelectTrigger id="supply_select">
+                <SelectValue placeholder="Selecione um insumo" />
+              </SelectTrigger>
+              <SelectContent>
+                {supplies?.map((supply) => (
+                  <SelectItem key={supply.id} value={supply.id}>
+                    {supply.name} - R$ {Number(supply.cost_value).toFixed(2)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label htmlFor="quantity">Quantidade *</Label>
+            <Input
+              id="quantity"
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={quantity}
+              onChange={(e) => setQuantity(parseFloat(e.target.value) || 1)}
+              disabled={!quoteId}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="adjusted_cost">Valor Unitário</Label>
+            <Input
+              id="adjusted_cost"
+              type="number"
+              step="0.01"
+              min="0"
+              value={adjustedCost}
+              onChange={(e) => setAdjustedCost(e.target.value)}
+              placeholder={selectedSupplyData ? selectedSupplyData.cost_value.toString() : "0.00"}
+              disabled={!quoteId || !selectedSupply}
+            />
+          </div>
         </div>
+
+        <div className="flex items-center justify-between pt-2 border-t">
+          <div className="text-sm">
+            <span className="text-muted-foreground">Valor Total da Linha: </span>
+            <span className="font-semibold text-lg">R$ {lineTotal.toFixed(2)}</span>
+          </div>
+          <Button onClick={handleAddSupply} disabled={!quoteId || !selectedSupply}>
+            <Plus className="mr-2 h-4 w-4" />
+            Adicionar Insumo
+          </Button>
+        </div>
+      </div>
+
+      {/* Link para cadastrar novo insumo */}
+      <div className="flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" size="sm" disabled={!quoteId}>
-              <Package className="mr-2 h-4 w-4" />
-              Adicionar Insumos
+            <Button variant="link" size="sm">
+              <Plus className="mr-1 h-3 w-3" />
+              Cadastrar Novo Insumo
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle>Gerenciar Insumos</DialogTitle>
+              <DialogTitle>Cadastrar Novo Insumo</DialogTitle>
             </DialogHeader>
-            <Tabs defaultValue="select">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="select">Selecionar Insumo</TabsTrigger>
-                <TabsTrigger value="create">Cadastrar Novo</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="select" className="space-y-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Nome</TableHead>
-                      <TableHead>Custo Unit.</TableHead>
-                      <TableHead>Quantidade</TableHead>
-                      <TableHead>Ajustar Custo</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {supplies?.map((supply) => (
-                      <TableRow key={supply.id}>
-                        <TableCell>{supply.code || "-"}</TableCell>
-                        <TableCell>{supply.name}</TableCell>
-                        <TableCell>R$ {Number(supply.cost_value).toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            defaultValue="1"
-                            className="w-24"
-                            onChange={(e) => {
-                              const current = selectedSupplies.get(supply.id) || { quantity: 1 };
-                              setSelectedSupplies(new Map(selectedSupplies.set(supply.id, {
-                                ...current,
-                                quantity: parseFloat(e.target.value) || 1
-                              })));
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            placeholder={supply.cost_value.toString()}
-                            className="w-32"
-                            onChange={(e) => {
-                              const current = selectedSupplies.get(supply.id) || { quantity: 1 };
-                              setSelectedSupplies(new Map(selectedSupplies.set(supply.id, {
-                                ...current,
-                                adjustedCost: parseFloat(e.target.value) || undefined
-                              })));
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            onClick={() => handleAddSupply(supply.id)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TabsContent>
-              
-              <TabsContent value="create">
-                <form onSubmit={handleCreateSupply} className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">Nome do Insumo *</Label>
-                    <Input id="name" name="name" required />
-                  </div>
-                  <div>
-                    <Label htmlFor="cost_value">Valor de Custo *</Label>
-                    <Input id="cost_value" name="cost_value" type="number" step="0.01" min="0" required />
-                  </div>
-                  <p className="text-xs text-muted-foreground">O código do insumo será gerado automaticamente</p>
-                  <Button type="submit" className="w-full">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Cadastrar Insumo
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
+            <form onSubmit={handleCreateSupply} className="space-y-4">
+              <div>
+                <Label htmlFor="name">Nome do Insumo *</Label>
+                <Input id="name" name="name" required />
+              </div>
+              <div>
+                <Label htmlFor="cost_value">Valor de Custo *</Label>
+                <Input id="cost_value" name="cost_value" type="number" step="0.01" min="0" required />
+              </div>
+              <p className="text-xs text-muted-foreground">O código do insumo será gerado automaticamente</p>
+              <Button type="submit" className="w-full">
+                <Plus className="mr-2 h-4 w-4" />
+                Cadastrar Insumo
+              </Button>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* Tabela de Insumos Adicionados */}
       {quoteSupplies && quoteSupplies.length > 0 && (
-        <div className="border rounded-lg p-4 space-y-3">
+        <div className="border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Insumo</TableHead>
-                <TableHead>Quantidade</TableHead>
-                <TableHead>Custo Unit.</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Ações</TableHead>
+                <TableHead>Nome do Insumo</TableHead>
+                <TableHead className="text-right">Quantidade</TableHead>
+                <TableHead className="text-right">Valor Unitário</TableHead>
+                <TableHead className="text-right">Valor Total</TableHead>
+                <TableHead className="text-center">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -260,11 +271,11 @@ export default function SupplySelector({ quoteId, onCostCalculated }: SupplySele
                 const lineCost = unitCost * qs.quantity;
                 return (
                   <TableRow key={qs.id}>
-                    <TableCell>{qs.supplies.name}</TableCell>
-                    <TableCell>{qs.quantity}</TableCell>
-                    <TableCell>R$ {Number(unitCost).toFixed(2)}</TableCell>
-                    <TableCell className="font-semibold">R$ {lineCost.toFixed(2)}</TableCell>
-                    <TableCell>
+                    <TableCell className="font-medium">{qs.supplies.name}</TableCell>
+                    <TableCell className="text-right">{qs.quantity}</TableCell>
+                    <TableCell className="text-right">R$ {Number(unitCost).toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-semibold">R$ {lineCost.toFixed(2)}</TableCell>
+                    <TableCell className="text-center">
                       <Button
                         size="sm"
                         variant="ghost"
@@ -278,12 +289,24 @@ export default function SupplySelector({ quoteId, onCostCalculated }: SupplySele
               })}
             </TableBody>
           </Table>
-          <div className="flex justify-end pt-3 border-t">
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Custo Total dos Insumos</p>
-              <p className="text-2xl font-bold text-primary">R$ {totalCost.toFixed(2)}</p>
+          
+          {/* Caixa de Total */}
+          <div className="bg-muted p-4 border-t">
+            <div className="flex justify-end items-center gap-4">
+              <Label className="text-base font-semibold">Valor Total de Custo:</Label>
+              <div className="text-3xl font-bold text-primary bg-background px-6 py-2 rounded-md border-2 border-primary">
+                R$ {totalCost.toFixed(2)}
+              </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {(!quoteSupplies || quoteSupplies.length === 0) && (
+        <div className="text-center py-8 text-muted-foreground border rounded-lg bg-muted/50">
+          <Package className="mx-auto h-12 w-12 mb-2 opacity-50" />
+          <p>Nenhum insumo adicionado ainda</p>
+          <p className="text-sm">Selecione um insumo acima para começar</p>
         </div>
       )}
     </div>

@@ -245,11 +245,25 @@ export default function Quotes() {
       </Card>
 
       <Dialog open={!!editingQuoteId} onOpenChange={(open) => !open && setEditingQuoteId(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Gerenciar Insumos do Orçamento</DialogTitle>
+            <DialogTitle>Gerenciar Custos e Insumos</DialogTitle>
           </DialogHeader>
-          <SupplySelector quoteId={editingQuoteId || undefined} />
+          <SupplySelector 
+            quoteId={editingQuoteId || undefined}
+            onCostCalculated={(totalCost) => {
+              // Atualizar o custo do orçamento no banco
+              if (editingQuoteId) {
+                supabase
+                  .from("quotes")
+                  .update({ cost_value: totalCost })
+                  .eq("id", editingQuoteId)
+                  .then(() => {
+                    queryClient.invalidateQueries({ queryKey: ["quotes"] });
+                  });
+              }
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>
