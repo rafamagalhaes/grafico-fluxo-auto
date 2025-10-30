@@ -189,7 +189,7 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
               min="0.01"
               value={quantity}
               onChange={(e) => setQuantity(parseFloat(e.target.value) || 1)}
-              disabled={!quoteId}
+              disabled={!selectedSupply}
             />
           </div>
           
@@ -203,7 +203,7 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
               value={adjustedCost}
               onChange={(e) => setAdjustedCost(e.target.value)}
               placeholder={selectedSupplyData ? selectedSupplyData.cost_value.toString() : "0.00"}
-              disabled={!quoteId || !selectedSupply}
+              disabled={!selectedSupply}
             />
           </div>
         </div>
@@ -213,7 +213,7 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
             <span className="text-muted-foreground">Valor Total da Linha: </span>
             <span className="font-semibold text-lg">R$ {lineTotal.toFixed(2)}</span>
           </div>
-          <Button onClick={handleAddSupply} disabled={!quoteId || !selectedSupply}>
+          <Button onClick={handleAddSupply} disabled={!selectedSupply}>
             <Plus className="mr-2 h-4 w-4" />
             Adicionar Insumo
           </Button>
