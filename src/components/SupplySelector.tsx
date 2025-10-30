@@ -166,7 +166,7 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="md:col-span-2">
             <Label htmlFor="supply_select">Nome do Insumo *</Label>
-            <Select value={selectedSupply} onValueChange={setSelectedSupply} disabled={!quoteId}>
+            <Select value={selectedSupply} onValueChange={setSelectedSupply}>
               <SelectTrigger id="supply_select">
                 <SelectValue placeholder="Selecione um insumo" />
               </SelectTrigger>
