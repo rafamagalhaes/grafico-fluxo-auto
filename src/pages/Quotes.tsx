@@ -31,6 +31,7 @@ export default function Quotes() {
   const [open, setOpen] = useState(false);
   const [costValue, setCostValue] = useState<number>(0);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
+  const [isCreatingTempQuote, setIsCreatingTempQuote] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -93,6 +94,41 @@ export default function Quotes() {
       toast({ title: "Pedido criado com sucesso!" });
     },
   });
+
+  const createTempQuoteMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase
+        .from("quotes")
+        .insert([
+          {
+            description: "Orçamento Temporário",
+            delivery_date: new Date().toISOString().split("T")[0],
+            cost_value: 0,
+            sale_value: 0,
+            client_id: clients?.[0]?.id || null, // Usar o primeiro cliente se houver
+          },
+        ])
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id;
+    },
+    onSuccess: (newId) => {
+      setEditingQuoteId(newId);
+      setIsCreatingTempQuote(false);
+    },
+    onError: () => {
+      setIsCreatingTempQuote(false);
+      toast({ title: "Erro ao criar orçamento temporário", variant: "destructive" });
+    },
+  });
+
+  useEffect(() => {
+    if (editingQuoteId === "new" && !isCreatingTempQuote) {
+      setIsCreatingTempQuote(true);
+      createTempQuoteMutation.mutate();
+    }
+  }, [editingQuoteId]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -163,10 +199,14 @@ export default function Quotes() {
                     />
                     <Dialog open={!!editingQuoteId} onOpenChange={(open) => !open && setEditingQuoteId(null)}>
                         <DialogTrigger asChild>
-                            <Button 
+                                <Button 
                                 type="button" 
                                 variant="outline" 
-                                onClick={() => setEditingQuoteId("new")} // Usar um ID temporário para novo orçamento
+                                disabled={isCreatingTempQuote}
+                                onClick={() => {
+                                    setEditingQuoteId("new");
+                                    setCostValue(0); // Resetar o valor de custo ao abrir novo
+                                }} // Usar um ID temporário para novo orçamento
                             >
                                 Selecionar Insumos
                             </Button>

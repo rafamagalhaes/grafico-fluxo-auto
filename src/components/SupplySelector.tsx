@@ -102,10 +102,10 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
   });
 
   const handleAddSupply = () => {
-    if (!selectedSupply || !quoteId) {
+    if (!selectedSupply) {
       toast({ 
         title: "Erro", 
-        description: "Selecione um insumo",
+        description: "Selecione um insumo e tente novamente.",
         variant: "destructive"
       });
       return;
