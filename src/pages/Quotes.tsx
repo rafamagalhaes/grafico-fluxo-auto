@@ -175,7 +175,12 @@ export default function Quotes() {
           <h1 className="text-3xl font-bold">Orçamentos</h1>
           <p className="text-muted-foreground">Gerencie seus orçamentos</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(open) => {
+    setOpen(open);
+    if (!open) {
+        setIsEditing(null); // Limpa o estado de edição ao fechar
+    }
+}}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="mr-2 h-4 w-4" />
@@ -229,8 +234,12 @@ export default function Quotes() {
                                 variant="outline" 
                                 disabled={isCreatingTempQuote}
                                 onClick={() => {
-                                    setEditingQuoteId("new");
-                                    setCostValue(0); // Resetar o valor de custo ao abrir novo
+                                    if (isEditing) {
+                                        setEditingQuoteId(isEditing.id);
+                                    } else {
+                                        setEditingQuoteId("new");
+                                        setCostValue(0); // Resetar o valor de custo ao abrir novo
+                                    }
                                 }} // Usar um ID temporário para novo orçamento
                             >
                                 Selecionar Insumos
