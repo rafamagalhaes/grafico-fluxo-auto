@@ -328,7 +328,7 @@ export default function Quotes() {
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Gerenciar Insumos</p>
+                              <p>Editar Orçamento</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
