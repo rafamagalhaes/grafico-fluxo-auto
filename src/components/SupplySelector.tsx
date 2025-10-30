@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -291,14 +291,13 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
           
           {/* Caixa de Total */}
           <div className="bg-muted p-4 border-t flex justify-between items-center">
-                        <div className="flex flex-col">
-                <Label className="text-base font-semibold">Valor Total de Custo:</Label>
-                <div className="text-3xl font-bold text-primary bg-background px-6 py-2 rounded-md border-2 border-primary">
-                  R$ {totalCost.toFixed(2)}
-                </div>
+            <div className="flex flex-col">
+              <Label className="text-base font-semibold">Valor Total de Custo:</Label>
+              <div className="text-3xl font-bold text-primary bg-background px-6 py-2 rounded-md border-2 border-primary">
+                R$ {totalCost.toFixed(2)}
               </div>
-              <Button onClick={onClose} className="bg-green-500 hover:bg-green-600">Finalizar</Button>
             </div>
+            <Button onClick={onClose} className="bg-green-500 hover:bg-green-600">Finalizar</Button>
           </div>
         </div>
       )}
