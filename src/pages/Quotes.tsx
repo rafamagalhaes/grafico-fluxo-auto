@@ -117,6 +117,10 @@ export default function Quotes() {
       setConvertingQuote(null); // Fechar o modal
       toast({ title: "Pedido criado com sucesso!" });
     },
+    onError: (error) => {
+      setConvertingQuote(null); // Fechar o modal
+      toast({ title: "Erro ao criar pedido", description: error.message, variant: "destructive" });
+    },
   });
 
   const createTempQuoteMutation = useMutation({
