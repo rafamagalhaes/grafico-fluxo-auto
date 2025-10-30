@@ -99,13 +99,16 @@ export default function Quotes() {
   };
 
   const convertToOrderMutation = useMutation({
-    mutationFn: async (data: { quote: Quote, total_value: number }) => {
-      const { quote, total_value } = data;
+    mutationFn: async (data: { quote: Quote, total_value: number, has_advance: boolean, advance_value: number }) => {
+      const { quote, total_value, has_advance, advance_value } = data;
       const { error } = await supabase.from("active_orders").insert([{
         quote_id: quote.id,
         description: quote.description,
         delivery_date: quote.delivery_date,
         total_value: total_value,
+        has_advance: has_advance,
+        advance_value: advance_value,
+        pending_value: total_value - (has_advance ? advance_value : 0),
       }]);
       if (error) throw error;
     },
@@ -376,10 +379,14 @@ export default function Quotes() {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
                 const totalValue = parseFloat(formData.get("sale_value") as string);
+                const hasAdvance = formData.get("has_advance") === "on";
+                const advanceValue = hasAdvance ? parseFloat(formData.get("advance_value") as string) : 0;
                 
                 convertToOrderMutation.mutate({
                   quote: convertingQuote,
                   total_value: totalValue,
+                  has_advance: hasAdvance,
+                  advance_value: advanceValue,
                 });
               }} 
               className="space-y-4"
@@ -401,6 +408,20 @@ export default function Quotes() {
                   step="0.01" 
                   defaultValue={convertingQuote.sale_value} 
                   required 
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input type="checkbox" id="has_advance" name="has_advance" className="rounded" />
+                <Label htmlFor="has_advance">Possui Adiantamento?</Label>
+              </div>
+              <div>
+                <Label htmlFor="advance_value">Valor do Adiantamento</Label>
+                <Input 
+                  id="advance_value" 
+                  name="advance_value" 
+                  type="number" 
+                  step="0.01" 
+                  defaultValue={0} 
                 />
               </div>
               <Button type="submit" className="w-full" disabled={convertToOrderMutation.isPending}>
