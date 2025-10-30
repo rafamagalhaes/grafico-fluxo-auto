@@ -95,6 +95,7 @@ export default function Quotes() {
   });
 
   const handleConvert = (quote: Quote) => {
+    setConvertingQuote(null); // Limpa o estado antes de definir o novo
     setConvertingQuote(quote);
   };
 
