@@ -147,6 +147,7 @@ export default function Quotes() {
   const handleEdit = (quote: Quote) => {
     setIsEditing(quote);
     setCostValue(quote.cost_value);
+    setEditingQuoteId(null); // Limpa o estado de insumos para evitar conflito
     setOpen(true);
   };
 
@@ -181,12 +182,14 @@ export default function Quotes() {
         setIsEditing(null); // Limpa o estado de edição ao fechar
     }
 }}>
-          <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => {
+                setIsEditing(null); // Garante que está no modo Novo Orçamento
+                setCostValue(0);
+                setOpen(true);
+            }}>
               <Plus className="mr-2 h-4 w-4" />
               Novo Orçamento
             </Button>
-          </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>{isEditing ? "Editar Orçamento" : "Novo Orçamento"}</DialogTitle>
