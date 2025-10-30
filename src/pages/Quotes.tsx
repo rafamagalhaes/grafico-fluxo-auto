@@ -31,6 +31,7 @@ export default function Quotes() {
   const [open, setOpen] = useState(false);
   const [costValue, setCostValue] = useState<number>(0);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState<Quote | null>(null);
   const [isCreatingTempQuote, setIsCreatingTempQuote] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -65,6 +66,19 @@ export default function Quotes() {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setOpen(false);
       toast({ title: "Orçamento criado com sucesso!" });
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const { id, ...updateData } = data;
+      const { error } = await supabase.from("quotes").update(updateData).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      setOpen(false);
+      toast({ title: "Orçamento atualizado com sucesso!" });
     },
   });
 
@@ -130,6 +144,12 @@ export default function Quotes() {
     }
   }, [editingQuoteId]);
 
+  const handleEdit = (quote: Quote) => {
+    setIsEditing(quote);
+    setCostValue(quote.cost_value);
+    setOpen(true);
+  };
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -140,7 +160,12 @@ export default function Quotes() {
       cost_value: costValue, // Usar o valor do estado
       sale_value: parseFloat(formData.get("sale_value") as string),
     };
-    createMutation.mutate(data);
+
+    if (isEditing) {
+      editMutation.mutate({ id: isEditing.id, ...data });
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
   return (
@@ -159,12 +184,12 @@ export default function Quotes() {
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Novo Orçamento</DialogTitle>
+              <DialogTitle>{isEditing ? "Editar Orçamento" : "Novo Orçamento"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="client_id">Cliente *</Label>
-                <Select name="client_id" required>
+                <Select name="client_id" required defaultValue={isEditing?.clients.name}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o cliente" />
                   </SelectTrigger>
@@ -179,11 +204,11 @@ export default function Quotes() {
               </div>
               <div>
                 <Label htmlFor="description">Descrição *</Label>
-                <Textarea id="description" name="description" required />
+                <Textarea id="description" name="description" required defaultValue={isEditing?.description} />
               </div>
               <div>
                 <Label htmlFor="delivery_date">Prazo de Entrega *</Label>
-                <Input id="delivery_date" name="delivery_date" type="date" required />
+                <Input id="delivery_date" name="delivery_date" type="date" required defaultValue={isEditing?.delivery_date} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -229,10 +254,10 @@ export default function Quotes() {
                 </div>
                 <div>
                   <Label htmlFor="sale_value">Valor de Venda *</Label>
-                  <Input id="sale_value" name="sale_value" type="number" step="0.01" required />
+                  <Input id="sale_value" name="sale_value" type="number" step="0.01" required defaultValue={isEditing?.sale_value} />
                 </div>
               </div>
-              <Button type="submit" className="w-full">Criar Orçamento</Button>
+              <Button type="submit" className="w-full">{isEditing ? "Salvar Alterações" : "Criar Orçamento"}</Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -285,7 +310,7 @@ export default function Quotes() {
                               <Button 
                                 size="sm" 
                                 variant="ghost"
-                                onClick={() => setEditingQuoteId(quote.id)}
+                                onClick={() => handleEdit(quote)}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
