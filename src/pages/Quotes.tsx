@@ -24,6 +24,7 @@ type Quote = {
   sale_value: number;
   profit_value: number;
   approved: boolean;
+  client_id: string;
   clients: { name: string };
 };
 
@@ -194,7 +195,7 @@ export default function Quotes() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="client_id">Cliente *</Label>
-                <Select name="client_id" required defaultValue={isEditing?.clients.name}>
+                <Select name="client_id" required defaultValue={isEditing?.client_id}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o cliente" />
                   </SelectTrigger>
