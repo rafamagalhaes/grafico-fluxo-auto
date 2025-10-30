@@ -33,6 +33,7 @@ export default function Quotes() {
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<Quote | null>(null);
   const [isCreatingTempQuote, setIsCreatingTempQuote] = useState(false);
+  const [convertingQuote, setConvertingQuote] = useState<Quote | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -93,18 +94,24 @@ export default function Quotes() {
     },
   });
 
+  const handleConvert = (quote: Quote) => {
+    setConvertingQuote(quote);
+  };
+
   const convertToOrderMutation = useMutation({
-    mutationFn: async (quote: Quote) => {
+    mutationFn: async (data: { quote: Quote, total_value: number }) => {
+      const { quote, total_value } = data;
       const { error } = await supabase.from("active_orders").insert([{
         quote_id: quote.id,
         description: quote.description,
         delivery_date: quote.delivery_date,
-        total_value: quote.sale_value,
+        total_value: total_value,
       }]);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      setConvertingQuote(null); // Fechar o modal
       toast({ title: "Pedido criado com sucesso!" });
     },
   });
@@ -339,7 +346,7 @@ export default function Quotes() {
                           </Button>
                         )}
                         {quote.approved && (
-                          <Button size="sm" variant="outline" onClick={() => convertToOrderMutation.mutate(quote)}>
+                          <Button size="sm" variant="outline" onClick={() => handleConvert(quote)}>
                             <ArrowRight className="mr-1 h-4 w-4" />
                             Converter em Pedido
                           </Button>
@@ -355,6 +362,54 @@ export default function Quotes() {
       </Card>
 
       
-    </div>
-  );
-}
+	    </div>
+
+      {/* Modal de Conversão para Pedido */}
+      <Dialog open={!!convertingQuote} onOpenChange={() => setConvertingQuote(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Converter Orçamento em Pedido</DialogTitle>
+          </DialogHeader>
+          {convertingQuote && (
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const totalValue = parseFloat(formData.get("sale_value") as string);
+                
+                convertToOrderMutation.mutate({
+                  quote: convertingQuote,
+                  total_value: totalValue,
+                });
+                setConvertingQuote(null);
+              }} 
+              className="space-y-4"
+            >
+              <div>
+                <Label htmlFor="description">Descrição</Label>
+                <Textarea id="description" name="description" defaultValue={convertingQuote.description} readOnly />
+              </div>
+              <div>
+                <Label htmlFor="delivery_date">Prazo de Entrega</Label>
+                <Input id="delivery_date" name="delivery_date" type="date" defaultValue={convertingQuote.delivery_date} readOnly />
+              </div>
+              <div>
+                <Label htmlFor="sale_value">Valor Total do Pedido</Label>
+                <Input 
+                  id="sale_value" 
+                  name="sale_value" 
+                  type="number" 
+                  step="0.01" 
+                  defaultValue={convertingQuote.sale_value} 
+                  required 
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={convertToOrderMutation.isPending}>
+                Criar Pedido
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+	  );
+	}
