@@ -95,7 +95,6 @@ export default function Quotes() {
   });
 
   const handleConvert = (quote: Quote) => {
-    setConvertingQuote(null); // Limpa o estado antes de definir o novo
     setConvertingQuote(quote);
   };
 
@@ -178,6 +177,7 @@ export default function Quotes() {
   };
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -362,8 +362,7 @@ export default function Quotes() {
         </CardContent>
       </Card>
 
-      
-	    </div>
+    </div>
 
       {/* Modal de Conversão para Pedido */}
       <Dialog open={!!convertingQuote} onOpenChange={() => setConvertingQuote(null)}>
@@ -382,7 +381,6 @@ export default function Quotes() {
                   quote: convertingQuote,
                   total_value: totalValue,
                 });
-                setConvertingQuote(null);
               }} 
               className="space-y-4"
             >
@@ -412,5 +410,6 @@ export default function Quotes() {
           )}
         </DialogContent>
       </Dialog>
-	  );
-	}
+    </>
+  );
+}
