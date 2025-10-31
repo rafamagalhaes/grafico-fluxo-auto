@@ -1,6 +1,9 @@
-import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Users, FileText, Package, DollarSign } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Users, FileText, Package, DollarSign, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -12,16 +15,31 @@ const navigation = [
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Erro ao sair",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      navigate("/auth");
+    }
+  };
 
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside className="w-64 bg-sidebar border-r border-sidebar-border">
+      <aside className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
           <Package className="h-6 w-6 text-sidebar-primary" />
           <h1 className="text-lg font-bold text-sidebar-foreground">Gráfica Pro</h1>
         </div>
-        <nav className="space-y-1 p-4">
+        <nav className="space-y-1 p-4 flex-1">
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -41,6 +59,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+        <div className="p-4 border-t border-sidebar-border">
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            className="w-full justify-start gap-3"
+          >
+            <LogOut className="h-5 w-5" />
+            Sair
+          </Button>
+        </div>
       </aside>
 
       {/* Main content */}
