@@ -35,6 +35,7 @@ export default function Quotes() {
   const [isEditing, setIsEditing] = useState<Quote | null>(null);
   const [isCreatingTempQuote, setIsCreatingTempQuote] = useState(false);
   const [convertingQuote, setConvertingQuote] = useState<Quote | null>(null);
+  const [tempQuoteId, setTempQuoteId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -67,6 +68,7 @@ export default function Quotes() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setOpen(false);
+      setTempQuoteId(null); // Limpa o ID temporário após o sucesso
       toast({ title: "Orçamento criado com sucesso!" });
     },
   });
@@ -80,6 +82,7 @@ export default function Quotes() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes"] });
       setOpen(false);
+      setTempQuoteId(null); // Limpa o ID temporário após o sucesso
       toast({ title: "Orçamento atualizado com sucesso!" });
     },
   });
@@ -160,6 +163,7 @@ export default function Quotes() {
     },
     onSuccess: (newId) => {
       setEditingQuoteId(newId);
+      setTempQuoteId(newId); // Armazena o ID temporário
       setIsCreatingTempQuote(false);
     },
     onError: () => {
@@ -195,6 +199,9 @@ export default function Quotes() {
 
     if (isEditing) {
       editMutation.mutate({ id: isEditing.id, ...data });
+    } else if (tempQuoteId) {
+      // Se existe um ID temporário, atualiza o orçamento temporário com os dados finais
+      editMutation.mutate({ id: tempQuoteId, ...data });
     } else {
       createMutation.mutate(data);
     }
