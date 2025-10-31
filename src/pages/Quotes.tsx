@@ -407,8 +407,8 @@ export default function Quotes() {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
                 const totalValue = parseFloat(formData.get("sale_value") as string);
-                const hasAdvance = formData.get("has_advance") === "on";
-                const advanceValue = hasAdvance ? parseFloat(formData.get("advance_value") as string) : 0;
+                const advanceValue = parseFloat(formData.get("advance_value") as string) || 0; // Garante que é um número ou 0
+                const hasAdvance = advanceValue > 0; // Lógica de inferência
                 
                 convertToOrderMutation.mutate({
                   quote: convertingQuote,
@@ -437,10 +437,6 @@ export default function Quotes() {
                   defaultValue={convertingQuote.sale_value} 
                   required 
                 />
-              </div>
-              <div className="flex items-center space-x-2">
-                <input type="checkbox" id="has_advance" name="has_advance" className="rounded" />
-                <Label htmlFor="has_advance">Possui Adiantamento?</Label>
               </div>
               <div>
                 <Label htmlFor="advance_value">Valor do Adiantamento</Label>
