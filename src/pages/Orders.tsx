@@ -76,7 +76,7 @@ export default function Orders() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("active_orders").update({ status }).eq("id", id).select("*").single();
+      const { data, error } = await supabase.from("active_orders").update({ status }).eq("id", id).select("*").single();
       if (error) throw error;
       return { order: data, status };
     },
