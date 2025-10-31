@@ -377,17 +377,6 @@ export default function Quotes() {
                             Converter em Pedido
                           </Button>
                         )}
-                        {quote.active_orders.length > 0 && quote.active_orders[0].status !== 'cancelado' && (
-                          <Button 
-                            size="sm" 
-                            variant="destructive" 
-                            onClick={() => cancelOrderMutation.mutate(quote.active_orders[0].id)}
-                            disabled={cancelOrderMutation.isPending}
-                          >
-                            <X className="mr-1 h-4 w-4" />
-                            Cancelar Pedido
-                          </Button>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
