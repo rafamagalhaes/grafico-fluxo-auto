@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      # Variáveis de ambiente do Next.js (se houver)
+      # Exemplo: NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      # Certifique-se de adicionar suas variáveis de ambiente aqui
+      NODE_ENV: production
+    # Opcional: Se você precisar de um volume para persistência de dados ou logs
+    # volumes:
+    #   - ./logs:/app/logs
+    restart: always
