@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus } from "lucide-react";
+import { Plus, Pencil, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 type Order = {
   id: string;
@@ -27,7 +28,9 @@ type Order = {
 
 export default function Orders() {
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [hasAdvance, setHasAdvance] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -67,6 +70,20 @@ export default function Orders() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const { error } = await supabase.from("active_orders").update(data).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      setEditOpen(false);
+      setEditingOrder(null);
+      setHasAdvance(false);
+      toast({ title: "Pedido atualizado com sucesso!" });
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -78,6 +95,27 @@ export default function Orders() {
       advance_value: hasAdvance ? parseFloat(formData.get("advance_value") as string) : 0,
     };
     createMutation.mutate(data);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingOrder) return;
+    
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      description: formData.get("description"),
+      delivery_date: formData.get("delivery_date"),
+      total_value: parseFloat(formData.get("total_value") as string),
+      has_advance: hasAdvance,
+      advance_value: hasAdvance ? parseFloat(formData.get("advance_value") as string) : 0,
+    };
+    updateMutation.mutate({ id: editingOrder.id, data });
+  };
+
+  const handleEdit = (order: Order) => {
+    setEditingOrder(order);
+    setHasAdvance(order.has_advance);
+    setEditOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -175,12 +213,44 @@ export default function Orders() {
                     <TableCell>
                       <div className="flex gap-2">
                         {order.status === "em_andamento" && (
-                          <Button
-                            size="sm"
-                            onClick={() => updateStatusMutation.mutate({ id: order.id, status: "concluido" })}
-                          >
-                            Concluir
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => updateStatusMutation.mutate({ id: order.id, status: "concluido" })}
+                            >
+                              Concluir
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(order)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="destructive">
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Cancelar Pedido</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja cancelar o pedido {order.code}? Esta ação não pode ser desfeita.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => updateStatusMutation.mutate({ id: order.id, status: "cancelado" })}
+                                  >
+                                    Cancelar Pedido
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </>
                         )}
                       </div>
                     </TableCell>
@@ -191,6 +261,68 @@ export default function Orders() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Pedido</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="edit_description">Descrição *</Label>
+              <Textarea 
+                id="edit_description" 
+                name="description" 
+                defaultValue={editingOrder?.description}
+                required 
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit_delivery_date">Prazo de Entrega *</Label>
+              <Input 
+                id="edit_delivery_date" 
+                name="delivery_date" 
+                type="date" 
+                defaultValue={editingOrder?.delivery_date}
+                required 
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit_total_value">Valor Total *</Label>
+              <Input 
+                id="edit_total_value" 
+                name="total_value" 
+                type="number" 
+                step="0.01" 
+                defaultValue={editingOrder?.total_value}
+                required 
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="edit_has_advance" 
+                checked={hasAdvance} 
+                onCheckedChange={(checked) => setHasAdvance(checked === true)} 
+              />
+              <Label htmlFor="edit_has_advance">Possui adiantamento?</Label>
+            </div>
+            {hasAdvance && (
+              <div>
+                <Label htmlFor="edit_advance_value">Valor do Adiantamento *</Label>
+                <Input 
+                  id="edit_advance_value" 
+                  name="advance_value" 
+                  type="number" 
+                  step="0.01" 
+                  defaultValue={editingOrder?.advance_value}
+                  required 
+                />
+              </div>
+            )}
+            <Button type="submit" className="w-full">Salvar Alterações</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

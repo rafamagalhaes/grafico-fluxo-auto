@@ -47,14 +47,13 @@ export default function Quotes() {
     },
   });
 
-  const  const { data: quotes } = useQuery({
+  const { data: quotes, isLoading } = useQuery({
     queryKey: ["quotes"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("*, clients(name), active_orders(id, status)") // Inclui dados do pedido ativo
-        .order("created_at", { ascending: false })
-        .order("created_at", { foreignTable: "active_orders", ascending: false }); });
+        .select("*, clients(name), active_orders(id, status)")
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Quote[];
     },
