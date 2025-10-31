@@ -59,14 +59,38 @@ export default function Orders() {
     },
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase.from("active_orders").update({ status }).eq("id", id);
+  const createRevenueMutation = useMutation({
+    mutationFn: async (data: { amount: number; description: string; order_id: string }) => {
+      const { error } = await supabase.from("financial_transactions").insert([{
+        amount: data.amount,
+        type: "receita",
+        description: `Receita do Pedido #${data.order_id}: ${data.description}`,
+        due_date: new Date().toISOString().split('T')[0], // Data de hoje como vencimento
+        order_id: data.order_id,
+        paid: true, // Assumindo que a receita é registrada como paga ao concluir o pedido
+        paid_date: new Date().toISOString().split('T')[0],
+      }]);
       if (error) throw error;
     },
-    onSuccess: () => {
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from("active_orders").update({ status }).eq("id", id).select("*").single();
+      if (error) throw error;
+      return { order: data, status };
+    },
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
       toast({ title: "Status atualizado!" });
+
+      if (result.status === "concluido") {
+        createRevenueMutation.mutate({
+          amount: result.order.total_value,
+          description: result.order.description,
+          order_id: result.order.id,
+        });
+      }
     },
   });
 
