@@ -53,7 +53,8 @@ export default function Quotes() {
       const { data, error } = await supabase
         .from("quotes")
         .select("*, clients(name), active_orders(id, status)") // Inclui dados do pedido ativo
-        .order("created_at", { ascending: false }); });
+        .order("created_at", { ascending: false })
+        .order("created_at", { foreignTable: "active_orders", ascending: false }); });
       if (error) throw error;
       return data as Quote[];
     },
