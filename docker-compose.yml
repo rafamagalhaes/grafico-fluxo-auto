@@ -9,10 +9,41 @@ services:
       - "3000:3000"
     environment:
       # Variáveis de ambiente do Next.js (se houver)
-      # Exemplo: NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-      # Certifique-se de adicionar suas variáveis de ambiente aqui
+      # Certifique-se de que estas variáveis apontem para o serviço 'db'
+      NEXT_PUBLIC_SUPABASE_URL: http://db:5432
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: your_anon_key_here # Substitua pela sua chave
       NODE_ENV: production
-    # Opcional: Se você precisar de um volume para persistência de dados ou logs
-    # volumes:
-    #   - ./logs:/app/logs
+    depends_on:
+      - db
     restart: always
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: app_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  # Opcional: Supabase Studio para gerenciar o banco de dados via interface web
+  studio:
+    image: supabase/studio:latest
+    ports:
+      - "54323:54323"
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: app_db
+      JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+    depends_on:
+      - db
+    restart: always
+
+volumes:
+  postgres_data:
