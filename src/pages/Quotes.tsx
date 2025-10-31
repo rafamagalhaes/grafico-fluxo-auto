@@ -99,14 +99,15 @@ export default function Quotes() {
   };
 
   const convertToOrderMutation = useMutation({
-    mutationFn: async (data: { quote: Quote, total_value: number }) => {
-      const { quote, total_value } = data;
+    mutationFn: async (data: { quote: Quote, total_value: number, has_advance: boolean, advance_value: number }) => {
+      const { quote, total_value, has_advance, advance_value } = data;
       const { error } = await supabase.from("active_orders").insert([{
         quote_id: quote.id,
         description: quote.description,
         delivery_date: quote.delivery_date,
         total_value: total_value,
-        pending_value: total_value, // Adicionado para corrigir o erro de NOT NULL
+        has_advance: has_advance,
+        advance_value: advance_value,
       }]);
       if (error) throw error;
     },
