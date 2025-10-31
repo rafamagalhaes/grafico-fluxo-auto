@@ -25,6 +25,7 @@ type Quote = {
   profit_value: number;
   approved: boolean;
   clients: { name: string };
+  active_orders: { id: string; status: string }[]; // Adicionado para incluir o pedido ativo
 };
 
 export default function Quotes() {
@@ -46,13 +47,13 @@ export default function Quotes() {
     },
   });
 
-  const { data: quotes, isLoading } = useQuery({
+  const  const { data: quotes } = useQuery({
     queryKey: ["quotes"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("*, clients(name)")
-        .order("created_at", { ascending: false });
+        .select("*, clients(name), active_orders(id, status)") // Inclui dados do pedido ativo
+        .order("created_at", { ascending: false }); });
       if (error) throw error;
       return data as Quote[];
     },
@@ -119,6 +120,23 @@ export default function Quotes() {
     onError: (error) => {
       setConvertingQuote(null); // Fechar o modal
       toast({ title: "Erro ao criar pedido", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { error } = await supabase
+        .from("active_orders")
+        .update({ status: "cancelado" })
+        .eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["quotes"] });
+      toast({ title: "Pedido cancelado com sucesso!" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao cancelar pedido", description: error.message, variant: "destructive" });
     },
   });
 
@@ -352,10 +370,21 @@ export default function Quotes() {
                             Aprovar
                           </Button>
                         )}
-                        {quote.approved && (
+                        {quote.approved && quote.active_orders.length === 0 && (
                           <Button size="sm" variant="outline" onClick={() => handleConvert(quote)}>
                             <ArrowRight className="mr-1 h-4 w-4" />
                             Converter em Pedido
+                          </Button>
+                        )}
+                        {quote.active_orders.length > 0 && quote.active_orders[0].status !== 'cancelado' && (
+                          <Button 
+                            size="sm" 
+                            variant="destructive" 
+                            onClick={() => cancelOrderMutation.mutate(quote.active_orders[0].id)}
+                            disabled={cancelOrderMutation.isPending}
+                          >
+                            <X className="mr-1 h-4 w-4" />
+                            Cancelar Pedido
                           </Button>
                         )}
                       </div>
