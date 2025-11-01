@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUserCompany } from "@/hooks/use-user-company";
 import { z } from "zod";
 
 const clientSchema = z.object({
@@ -36,6 +37,7 @@ export default function Clients() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: userCompany } = useUserCompany();
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients"],
@@ -51,7 +53,8 @@ export default function Clients() {
 
   const createMutation = useMutation({
     mutationFn: async (data: ClientInput) => {
-      const { error } = await supabase.from("clients").insert([data]);
+      if (!userCompany?.company_id) throw new Error("Company not found");
+      const { error } = await supabase.from("clients").insert([{ ...data, company_id: userCompany.company_id }]);
       if (error) throw error;
     },
     onSuccess: () => {

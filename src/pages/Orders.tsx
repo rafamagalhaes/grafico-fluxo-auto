@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Pencil, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -33,6 +34,7 @@ export default function Orders() {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: userCompany } = useUserCompany();
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["orders"],
@@ -48,7 +50,8 @@ export default function Orders() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase.from("active_orders").insert([data]);
+      if (!userCompany?.company_id) throw new Error("Company not found");
+      const { error } = await supabase.from("active_orders").insert([{ ...data, company_id: userCompany.company_id }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -61,6 +64,7 @@ export default function Orders() {
 
   const createRevenueMutation = useMutation({
     mutationFn: async (data: { amount: number; description: string; order_id: string }) => {
+      if (!userCompany?.company_id) throw new Error("Company not found");
       const { error } = await supabase.from("financial_transactions").insert([{
         amount: data.amount,
         type: "receita",
@@ -69,6 +73,7 @@ export default function Orders() {
         order_id: data.order_id,
         paid: true, // Assumindo que a receita é registrada como paga ao concluir o pedido
         paid_date: new Date().toISOString().split('T')[0],
+        company_id: userCompany.company_id,
       }]);
       if (error) throw error;
     },

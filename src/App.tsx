@@ -12,6 +12,7 @@ import Clients from "./pages/Clients";
 import Quotes from "./pages/Quotes";
 import Orders from "./pages/Orders";
 import Financial from "./pages/Financial";
+import Companies from "./pages/Companies";
 import Users from "./pages/Users";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -109,6 +110,16 @@ const App = () => {
                 <ProtectedRoute session={session}>
                   <AppLayout>
                     <Financial />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/companies"
+              element={
+                <ProtectedRoute session={session}>
+                  <AppLayout>
+                    <Companies />
                   </AppLayout>
                 </ProtectedRoute>
               }

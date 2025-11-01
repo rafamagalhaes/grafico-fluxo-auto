@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, CheckCircle, ArrowRight, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import SupplySelector from "@/components/SupplySelector";
@@ -38,6 +39,7 @@ export default function Quotes() {
   const [tempQuoteId, setTempQuoteId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: userCompany } = useUserCompany();
 
   const { data: clients } = useQuery({
     queryKey: ["clients"],
@@ -62,7 +64,8 @@ export default function Quotes() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase.from("quotes").insert([data]);
+      if (!userCompany?.company_id) throw new Error("Company not found");
+      const { error } = await supabase.from("quotes").insert([{ ...data, company_id: userCompany.company_id }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -104,6 +107,7 @@ export default function Quotes() {
 
   const convertToOrderMutation = useMutation({
     mutationFn: async (data: { quote: Quote, total_value: number, has_advance: boolean, advance_value: number }) => {
+      if (!userCompany?.company_id) throw new Error("Company not found");
       const { quote, total_value, has_advance, advance_value } = data;
       const { error } = await supabase.from("active_orders").insert([{
         quote_id: quote.id,
@@ -112,6 +116,7 @@ export default function Quotes() {
         total_value: total_value,
         has_advance: has_advance,
         advance_value: advance_value,
+        company_id: userCompany.company_id,
       }]);
       if (error) throw error;
     },

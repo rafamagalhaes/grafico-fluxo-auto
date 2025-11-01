@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, FileText, Package, DollarSign, LogOut, UserCog } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Package, DollarSign, LogOut, UserCog, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ const navigation = [
   { name: "Orçamentos", href: "/quotes", icon: FileText },
   { name: "Pedidos", href: "/orders", icon: Package },
   { name: "Financeiro", href: "/financial", icon: DollarSign },
+  { name: "Empresas", href: "/companies", icon: Building2 },
   { name: "Usuários", href: "/users", icon: UserCog },
 ];
 

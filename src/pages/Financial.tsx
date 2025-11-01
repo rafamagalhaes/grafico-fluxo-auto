@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
 
 type Transaction = {
@@ -30,6 +31,7 @@ export default function Financial() {
   const [year, setYear] = useState(new Date().getFullYear());
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: userCompany } = useUserCompany();
 
   const { data: transactions, isLoading } = useQuery({
     queryKey: ["transactions", month, year],
@@ -58,7 +60,8 @@ export default function Financial() {
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase.from("financial_transactions").insert([data]);
+      if (!userCompany?.company_id) throw new Error("Company not found");
+      const { error } = await supabase.from("financial_transactions").insert([{ ...data, company_id: userCompany.company_id }]);
       if (error) throw error;
     },
     onSuccess: () => {
