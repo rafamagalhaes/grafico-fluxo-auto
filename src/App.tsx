@@ -14,6 +14,7 @@ import Orders from "./pages/Orders";
 import Financial from "./pages/Financial";
 import Companies from "./pages/Companies";
 import Users from "./pages/Users";
+import Subscriptions from "./pages/Subscriptions";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -130,6 +131,16 @@ const App = () => {
                 <ProtectedRoute session={session}>
                   <AppLayout>
                     <Users />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/subscriptions"
+              element={
+                <ProtectedRoute session={session}>
+                  <AppLayout>
+                    <Subscriptions />
                   </AppLayout>
                 </ProtectedRoute>
               }

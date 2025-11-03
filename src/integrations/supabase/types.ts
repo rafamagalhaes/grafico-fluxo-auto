@@ -125,6 +125,7 @@ export type Database = {
           id: string
           name: string
           slug: string | null
+          trial_end_date: string | null
           updated_at: string
         }
         Insert: {
@@ -133,6 +134,7 @@ export type Database = {
           id?: string
           name: string
           slug?: string | null
+          trial_end_date?: string | null
           updated_at?: string
         }
         Update: {
@@ -141,6 +143,7 @@ export type Database = {
           id?: string
           name?: string
           slug?: string | null
+          trial_end_date?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -204,6 +207,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plans: {
+        Row: {
+          created_at: string | null
+          duration_months: number
+          id: string
+          name: string
+          price: number
+        }
+        Insert: {
+          created_at?: string | null
+          duration_months: number
+          id?: string
+          name: string
+          price: number
+        }
+        Update: {
+          created_at?: string | null
+          duration_months?: number
+          id?: string
+          name?: string
+          price?: number
+        }
+        Relationships: []
       }
       quote_supplies: {
         Row: {
@@ -303,6 +330,54 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          end_date: string
+          id: string
+          plan_id: string
+          start_date: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          end_date: string
+          id?: string
+          plan_id: string
+          start_date?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          plan_id?: string
+          start_date?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
             referencedColumns: ["id"]
           },
         ]
