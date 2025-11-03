@@ -7,18 +7,24 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useUserCompany } from "@/hooks/use-user-company";
+import { useUserRole } from "@/hooks/use-user-role";
 import { Pencil, Trash2, Plus } from "lucide-react";
 import { z } from "zod";
 
 const userSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+  role: z.enum(["admin", "user"]),
 });
 
 export default function Users() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: userCompany } = useUserCompany();
+  const { data: userRole } = useUserRole();
   const [open, setOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
 
@@ -33,13 +39,29 @@ export default function Users() {
   });
 
   const createUserMutation = useMutation({
-    mutationFn: async (data: { email: string; password: string }) => {
-      const { data: newUser, error } = await supabase.auth.admin.createUser({
+    mutationFn: async (data: { email: string; password: string; role: "admin" | "user" }) => {
+      // Create user
+      const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
         email: data.email,
         password: data.password,
         email_confirm: true,
       });
-      if (error) throw error;
+      if (authError) throw authError;
+      
+      // Assign role
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .insert([{ user_id: newUser.user.id, role: data.role }]);
+      if (roleError) throw roleError;
+      
+      // Link to company (admins link to their own company)
+      if (userCompany?.company_id) {
+        const { error: companyError } = await supabase
+          .from("user_companies")
+          .insert([{ user_id: newUser.user.id, company_id: userCompany.company_id }]);
+        if (companyError) throw companyError;
+      }
+      
       return newUser;
     },
     onSuccess: () => {
@@ -79,11 +101,12 @@ export default function Users() {
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email");
     const password = formData.get("password");
+    const role = formData.get("role");
 
-    if (!email || !password) {
+    if (!email || !password || !role) {
       toast({
         title: "Erro de validação",
-        description: "Email e senha são obrigatórios",
+        description: "Todos os campos são obrigatórios",
         variant: "destructive",
       });
       return;
@@ -92,8 +115,9 @@ export default function Users() {
     try {
       const validatedData = userSchema.parse({ 
         email: email.toString(), 
-        password: password.toString() 
-      }) as { email: string; password: string };
+        password: password.toString(),
+        role: role.toString()
+      }) as { email: string; password: string; role: "admin" | "user" };
       createUserMutation.mutate(validatedData);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -153,6 +177,18 @@ export default function Users() {
                   placeholder="••••••"
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role">Permissão</Label>
+                <Select name="role" required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a permissão" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Administrador</SelectItem>
+                    <SelectItem value="user">Colaborador</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <Button type="submit" className="w-full" disabled={createUserMutation.isPending}>
                 {createUserMutation.isPending ? "Criando..." : "Criar Usuário"}

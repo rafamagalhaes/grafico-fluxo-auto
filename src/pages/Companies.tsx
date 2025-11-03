@@ -15,7 +15,20 @@ import { z } from "zod";
 const companySchema = z.object({
   name: z.string().min(1, "Nome é obrigatório").max(100, "Nome muito longo"),
   document: z.string().optional(),
+  slug: z.string().optional(),
 });
+
+// Function to generate slug from company name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Remove accents
+    .replace(/[^\w\s-]/g, "") // Remove special chars
+    .replace(/\s+/g, "-") // Replace spaces with hyphens
+    .replace(/-+/g, "-") // Remove duplicate hyphens
+    .trim();
+}
 
 export default function Companies() {
   const { toast } = useToast();
@@ -58,8 +71,10 @@ export default function Companies() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: { name: string; document?: string }) => {
-      const { error } = await supabase.from("companies").insert([data]);
+    mutationFn: async (data: { name: string; document?: string; slug?: string }) => {
+      // Generate slug from name if not provided
+      const slug = data.slug || generateSlug(data.name);
+      const { error } = await supabase.from("companies").insert([{ ...data, slug }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -77,8 +92,10 @@ export default function Companies() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { name: string; document?: string } }) => {
-      const { error } = await supabase.from("companies").update(data).eq("id", id);
+    mutationFn: async ({ id, data }: { id: string; data: { name: string; document?: string; slug?: string } }) => {
+      // Generate slug from name if not provided
+      const slug = data.slug || generateSlug(data.name);
+      const { error } = await supabase.from("companies").update({ ...data, slug }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -159,7 +176,7 @@ export default function Companies() {
       const validatedData = companySchema.parse({ 
         name: name.toString(), 
         document: document?.toString() 
-      }) as { name: string; document?: string };
+      }) as { name: string; document?: string; slug?: string };
       
       if (editingCompany) {
         updateMutation.mutate({ id: editingCompany.id, data: validatedData });

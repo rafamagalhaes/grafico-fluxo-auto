@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useUserRole } from "@/hooks/use-user-role";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -19,6 +20,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { data: userRole } = useUserRole();
+
+  // Filter navigation based on user role
+  const filteredNavigation = navigation.filter((item) => {
+    // Hide "Empresas" for non-superadmins
+    if (item.href === "/companies" && userRole !== "superadmin") {
+      return false;
+    }
+    // Hide "Financeiro" for regular users
+    if (item.href === "/financial" && userRole === "user") {
+      return false;
+    }
+    return true;
+  });
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -42,7 +57,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <h1 className="text-lg font-bold text-sidebar-foreground">Gráfica Pro</h1>
         </div>
         <nav className="space-y-1 p-4 flex-1">
-          {navigation.map((item) => {
+          {filteredNavigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
               <Link
