@@ -65,7 +65,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background flex-col">
       {/* Subscription banner */}
-      {subscriptionData && !subscriptionData.isActive && (
+      {subscriptionData && !subscriptionData.isActive && subscriptionData.status !== "unlimited" && (
         <div className="bg-yellow-500 text-white px-4 py-2 text-center text-sm font-medium">
           {subscriptionData.status === "trial" 
             ? `Período de degustação - ${getDaysRemaining()} dias restantes`

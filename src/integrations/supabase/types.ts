@@ -126,6 +126,7 @@ export type Database = {
           name: string
           slug: string | null
           trial_end_date: string | null
+          unlimited_access: boolean | null
           updated_at: string
         }
         Insert: {
@@ -135,6 +136,7 @@ export type Database = {
           name: string
           slug?: string | null
           trial_end_date?: string | null
+          unlimited_access?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -144,6 +146,7 @@ export type Database = {
           name?: string
           slug?: string | null
           trial_end_date?: string | null
+          unlimited_access?: boolean | null
           updated_at?: string
         }
         Relationships: []

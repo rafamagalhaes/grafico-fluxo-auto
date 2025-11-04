@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type SubscriptionStatus = "trial" | "active" | "expired";
+export type SubscriptionStatus = "trial" | "active" | "expired" | "unlimited";
 
 export function useSubscription() {
   return useQuery({
@@ -10,13 +10,41 @@ export function useSubscription() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
+      // Check if user is superadmin
+      const { data: userRole } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      if (userRole?.role === "superadmin") {
+        return {
+          status: "unlimited" as SubscriptionStatus,
+          isActive: true,
+          subscription: null,
+          trialEndDate: null,
+          isSuperadmin: true,
+        };
+      }
+
       const { data: userCompany } = await supabase
         .from("user_companies")
-        .select("company_id, companies(trial_end_date)")
+        .select("company_id, companies(trial_end_date, unlimited_access)")
         .eq("user_id", user.id)
         .single();
 
       if (!userCompany) throw new Error("No company found");
+
+      // Check if company has unlimited access
+      if (userCompany.companies.unlimited_access) {
+        return {
+          status: "unlimited" as SubscriptionStatus,
+          isActive: true,
+          subscription: null,
+          trialEndDate: null,
+          hasUnlimitedAccess: true,
+        };
+      }
 
       const { data: subscription } = await supabase
         .from("subscriptions")

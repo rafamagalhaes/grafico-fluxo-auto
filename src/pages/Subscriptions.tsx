@@ -5,15 +5,33 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useUserCompany } from "@/hooks/use-user-company";
+import { useUserRole } from "@/hooks/use-user-role";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CheckCircle2, Clock } from "lucide-react";
+import { CheckCircle2, Clock, Infinity } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export default function Subscriptions() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: subscriptionData } = useSubscription();
   const { data: userCompany } = useUserCompany();
+  const { data: userRole } = useUserRole();
+
+  const { data: companies = [] } = useQuery({
+    queryKey: ["companies"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: userRole === "superadmin",
+  });
 
   const { data: plans = [] } = useQuery({
     queryKey: ["plans"],
@@ -25,6 +43,32 @@ export default function Subscriptions() {
 
       if (error) throw error;
       return data;
+    },
+  });
+
+  const toggleUnlimitedAccessMutation = useMutation({
+    mutationFn: async ({ companyId, unlimited }: { companyId: string; unlimited: boolean }) => {
+      const { error } = await supabase
+        .from("companies")
+        .update({ unlimited_access: unlimited })
+        .eq("id", companyId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Acesso atualizado",
+        description: "Acesso ilimitado foi atualizado com sucesso!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      queryClient.invalidateQueries({ queryKey: ["subscription"] });
+    },
+    onError: () => {
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o acesso.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -90,6 +134,8 @@ export default function Subscriptions() {
                   <Clock className="h-5 w-5 text-yellow-500" />
                 ) : subscriptionData.status === "active" ? (
                   <CheckCircle2 className="h-5 w-5 text-green-500" />
+                ) : subscriptionData.status === "unlimited" ? (
+                  <Infinity className="h-5 w-5 text-blue-500" />
                 ) : (
                   <Clock className="h-5 w-5 text-red-500" />
                 )}
@@ -97,6 +143,17 @@ export default function Subscriptions() {
               </CardTitle>
             </CardHeader>
             <CardContent>
+              {subscriptionData.status === "unlimited" && (
+                <div className="space-y-2">
+                  <p className="text-lg font-semibold text-blue-600">Acesso Ilimitado</p>
+                  <p className="text-muted-foreground">
+                    {subscriptionData.isSuperadmin 
+                      ? "Você tem acesso ilimitado como superadmin."
+                      : "Sua empresa possui acesso ilimitado ao sistema."}
+                  </p>
+                </div>
+              )}
+
               {subscriptionData.status === "trial" && (
                 <div className="space-y-2">
                   <p className="text-lg font-semibold">Período de Degustação</p>
@@ -133,38 +190,75 @@ export default function Subscriptions() {
           </Card>
         )}
 
-        <div>
-          <h2 className="text-2xl font-bold mb-4">Planos Disponíveis</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {plans.map((plan) => (
-              <Card key={plan.id} className="flex flex-col">
-                <CardHeader>
-                  <CardTitle>{plan.name}</CardTitle>
-                  <CardDescription>
-                    {plan.duration_months} {plan.duration_months === 1 ? "mês" : "meses"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col justify-between">
-                  <div className="mb-4">
-                    <p className="text-3xl font-bold">
-                      R$ {plan.price.toFixed(2)}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      R$ {(plan.price / plan.duration_months).toFixed(2)}/mês
-                    </p>
+        {userRole === "superadmin" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Gerenciar Acesso Ilimitado</CardTitle>
+              <CardDescription>Conceda ou remova acesso ilimitado para empresas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {companies.map((company) => (
+                  <div key={company.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{company.name}</p>
+                      <p className="text-sm text-muted-foreground">{company.document}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`unlimited-${company.id}`}>Acesso Ilimitado</Label>
+                      <Switch
+                        id={`unlimited-${company.id}`}
+                        checked={company.unlimited_access}
+                        onCheckedChange={(checked) =>
+                          toggleUnlimitedAccessMutation.mutate({
+                            companyId: company.id,
+                            unlimited: checked,
+                          })
+                        }
+                        disabled={toggleUnlimitedAccessMutation.isPending}
+                      />
+                    </div>
                   </div>
-                  <Button
-                    onClick={() => subscribeMutation.mutate(plan.id)}
-                    disabled={subscribeMutation.isPending || subscriptionData?.status === "active"}
-                    className="w-full"
-                  >
-                    {subscriptionData?.status === "active" ? "Plano Ativo" : "Assinar"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {subscriptionData?.status !== "unlimited" && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Planos Disponíveis</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {plans.map((plan) => (
+                <Card key={plan.id} className="flex flex-col">
+                  <CardHeader>
+                    <CardTitle>{plan.name}</CardTitle>
+                    <CardDescription>
+                      {plan.duration_months} {plan.duration_months === 1 ? "mês" : "meses"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1 flex flex-col justify-between">
+                    <div className="mb-4">
+                      <p className="text-3xl font-bold">
+                        R$ {plan.price.toFixed(2)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        R$ {(plan.price / plan.duration_months).toFixed(2)}/mês
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => subscribeMutation.mutate(plan.id)}
+                      disabled={subscribeMutation.isPending || subscriptionData?.status === "active"}
+                      className="w-full"
+                    >
+                      {subscriptionData?.status === "active" ? "Plano Ativo" : "Assinar"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
