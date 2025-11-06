@@ -171,7 +171,6 @@ export default function Quotes() {
       return data.id;
     },
     onSuccess: (newId) => {
-      setEditingQuoteId(newId);
       setTempQuoteId(newId); // Armazena o ID temporário
       setIsCreatingTempQuote(false);
     },
