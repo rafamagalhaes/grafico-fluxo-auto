@@ -235,6 +235,30 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_products: {
+        Row: {
+          created_at: string | null
+          id: string
+          product_name: string
+          quote_id: string
+          sale_value: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          product_name: string
+          quote_id: string
+          sale_value?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          product_name?: string
+          quote_id?: string
+          sale_value?: number
+        }
+        Relationships: []
+      }
       quote_supplies: {
         Row: {
           adjusted_cost: number | null

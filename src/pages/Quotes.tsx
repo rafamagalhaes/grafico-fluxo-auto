@@ -15,6 +15,7 @@ import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import SupplySelector from "@/components/SupplySelector";
+import ProductSelector from "@/components/ProductSelector";
 
 type Quote = {
   id: string;
@@ -32,6 +33,7 @@ type Quote = {
 export default function Quotes() {
   const [open, setOpen] = useState(false);
   const [costValue, setCostValue] = useState<number>(0);
+  const [saleValue, setSaleValue] = useState<number>(0);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<Quote | null>(null);
   const [isCreatingTempQuote, setIsCreatingTempQuote] = useState(false);
@@ -187,6 +189,7 @@ export default function Quotes() {
   const handleEdit = (quote: Quote) => {
     setIsEditing(quote);
     setCostValue(quote.cost_value);
+    setSaleValue(quote.sale_value);
     setEditingQuoteId(null); // Limpa o estado de insumos para evitar conflito
     setOpen(true);
   };
@@ -196,10 +199,10 @@ export default function Quotes() {
     const formData = new FormData(e.currentTarget);
     const data = {
       client_id: formData.get("client_id"),
-      description: formData.get("description"),
+      description: "Orçamento com produtos", // Descrição padrão
       delivery_date: formData.get("delivery_date"),
       cost_value: costValue, // Usar o valor do estado
-      sale_value: parseFloat(formData.get("sale_value") as string),
+      sale_value: saleValue, // Usar o valor total calculado
     };
 
     if (isEditing) {
@@ -229,6 +232,7 @@ export default function Quotes() {
             <Button onClick={() => {
                 setIsEditing(null); // Garante que está no modo Novo Orçamento
                 setCostValue(0);
+                setSaleValue(0);
                 setOpen(true);
             }}>
               <Plus className="mr-2 h-4 w-4" />
@@ -255,12 +259,15 @@ export default function Quotes() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="description">Descrição *</Label>
-                <Textarea id="description" name="description" required defaultValue={isEditing?.description} />
-              </div>
-              <div>
                 <Label htmlFor="delivery_date">Prazo de Entrega *</Label>
                 <Input id="delivery_date" name="delivery_date" type="date" required defaultValue={isEditing?.delivery_date} />
+              </div>
+              <div>
+                <Label>Produtos</Label>
+                <ProductSelector 
+                  quoteId={isEditing?.id || tempQuoteId}
+                  onTotalCalculated={(total) => setSaleValue(total)}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -309,8 +316,16 @@ export default function Quotes() {
                   <p className="text-xs text-muted-foreground mt-1">Custo total calculado com base nos insumos selecionados.</p>
                 </div>
                 <div>
-                  <Label htmlFor="sale_value">Valor de Venda *</Label>
-                  <Input id="sale_value" name="sale_value" type="number" step="0.01" required defaultValue={isEditing?.sale_value} />
+                  <Label htmlFor="sale_value">Valor Total</Label>
+                  <Input 
+                    id="sale_value" 
+                    name="sale_value" 
+                    type="number" 
+                    step="0.01" 
+                    value={saleValue.toFixed(2)} 
+                    readOnly 
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Valor total calculado com base nos produtos incluídos.</p>
                 </div>
               </div>
               <Button type="submit" className="w-full">{isEditing ? "Salvar Alterações" : "Criar Orçamento"}</Button>
