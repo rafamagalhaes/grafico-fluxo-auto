@@ -152,6 +152,7 @@ export default function Quotes() {
 
   const createTempQuoteMutation = useMutation({
     mutationFn: async () => {
+      if (!userCompany?.company_id) throw new Error("Company not found");
       const { data, error } = await supabase
         .from("quotes")
         .insert([
@@ -160,7 +161,8 @@ export default function Quotes() {
             delivery_date: new Date().toISOString().split("T")[0],
             cost_value: 0,
             sale_value: 0,
-            client_id: clients?.[0]?.id || null, // Usar o primeiro cliente se houver
+            client_id: clients?.[0]?.id || null,
+            company_id: userCompany.company_id,
           },
         ])
         .select("id")
