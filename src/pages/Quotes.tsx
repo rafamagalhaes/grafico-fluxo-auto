@@ -180,7 +180,7 @@ export default function Quotes() {
   });
 
   useEffect(() => {
-    if (editingQuoteId === "new" && !isCreatingTempQuote) {
+    if (editingQuoteId === "new" && !isCreatingTempQuote && !tempQuoteId) {
       setIsCreatingTempQuote(true);
       createTempQuoteMutation.mutate();
     }
@@ -190,7 +190,8 @@ export default function Quotes() {
     setIsEditing(quote);
     setCostValue(quote.cost_value);
     setSaleValue(quote.sale_value);
-    setEditingQuoteId(null); // Limpa o estado de insumos para evitar conflito
+    setEditingQuoteId(null);
+    setTempQuoteId(null);
     setOpen(true);
   };
 
@@ -226,13 +227,16 @@ export default function Quotes() {
         <Dialog open={open} onOpenChange={(open) => {
     setOpen(open);
     if (!open) {
-        setIsEditing(null); // Limpa o estado de edição ao fechar
+        setIsEditing(null);
+        setTempQuoteId(null);
     }
 }}>
             <Button onClick={() => {
-                setIsEditing(null); // Garante que está no modo Novo Orçamento
+                setIsEditing(null);
                 setCostValue(0);
                 setSaleValue(0);
+                setIsCreatingTempQuote(true);
+                createTempQuoteMutation.mutate();
                 setOpen(true);
             }}>
               <Plus className="mr-2 h-4 w-4" />
