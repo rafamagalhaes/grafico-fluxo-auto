@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserCompany } from "@/hooks/use-user-company";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -126,83 +125,81 @@ export default function CompanySettings() {
   };
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Configurações da Empresa</h1>
-          <p className="text-muted-foreground">
-            Personalize a aparência da sua empresa no sistema
-          </p>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Logo da Empresa</CardTitle>
-            <CardDescription>
-              Adicione a logo da sua empresa para personalizar o sistema
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {company?.logo_url && (
-              <div className="flex items-center gap-4">
-                <img
-                  src={company.logo_url}
-                  alt="Logo da empresa"
-                  className="h-20 w-auto object-contain rounded border"
-                />
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  onClick={() => deleteLogoMutation.mutate()}
-                  disabled={deleteLogoMutation.isPending}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="logo">
-                {company?.logo_url ? "Alterar Logo" : "Adicionar Logo"}
-              </Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="logo"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  disabled={uploading}
-                />
-                <Button disabled={uploading} size="icon" variant="secondary">
-                  <Upload className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Formatos aceitos: PNG, JPG, GIF. Tamanho máximo: 2MB
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Informações da Empresa</CardTitle>
-            <CardDescription>
-              Dados cadastrais da empresa
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Nome</Label>
-              <Input value={company?.name || ""} disabled />
-            </div>
-            <div className="space-y-2">
-              <Label>Documento</Label>
-              <Input value={company?.document || ""} disabled />
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Configurações da Empresa</h1>
+        <p className="text-muted-foreground">
+          Personalize a aparência da sua empresa no sistema
+        </p>
       </div>
-    </AppLayout>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Logo da Empresa</CardTitle>
+          <CardDescription>
+            Adicione a logo da sua empresa para personalizar o sistema
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {company?.logo_url && (
+            <div className="flex items-center gap-4">
+              <img
+                src={company.logo_url}
+                alt="Logo da empresa"
+                className="h-20 w-auto object-contain rounded border"
+              />
+              <Button
+                variant="destructive"
+                size="icon"
+                onClick={() => deleteLogoMutation.mutate()}
+                disabled={deleteLogoMutation.isPending}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="logo">
+              {company?.logo_url ? "Alterar Logo" : "Adicionar Logo"}
+            </Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="logo"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                disabled={uploading}
+              />
+              <Button disabled={uploading} size="icon" variant="secondary">
+                <Upload className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Formatos aceitos: PNG, JPG, GIF. Tamanho máximo: 2MB
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Informações da Empresa</CardTitle>
+          <CardDescription>
+            Dados cadastrais da empresa
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Nome</Label>
+            <Input value={company?.name || ""} disabled />
+          </div>
+          <div className="space-y-2">
+            <Label>Documento</Label>
+            <Input value={company?.document || ""} disabled />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
