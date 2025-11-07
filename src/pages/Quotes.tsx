@@ -180,6 +180,16 @@ export default function Quotes() {
     },
   });
 
+  const deleteTempQuoteMutation = useMutation({
+    mutationFn: async (quoteId: string) => {
+      const { error } = await supabase
+        .from("quotes")
+        .delete()
+        .eq("id", quoteId);
+      if (error) throw error;
+    },
+  });
+
   useEffect(() => {
     if (editingQuoteId === "new" && !isCreatingTempQuote && !tempQuoteId) {
       setIsCreatingTempQuote(true);
@@ -228,6 +238,10 @@ export default function Quotes() {
         <Dialog open={open} onOpenChange={(open) => {
     setOpen(open);
     if (!open) {
+        // Se houver um orçamento temporário e o usuário não estava editando, deletar
+        if (tempQuoteId && !isEditing) {
+          deleteTempQuoteMutation.mutate(tempQuoteId);
+        }
         setIsEditing(null);
         setTempQuoteId(null);
     }
