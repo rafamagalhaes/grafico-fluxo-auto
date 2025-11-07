@@ -15,6 +15,7 @@ import Financial from "./pages/Financial";
 import Companies from "./pages/Companies";
 import Users from "./pages/Users";
 import Subscriptions from "./pages/Subscriptions";
+import CompanySettings from "./pages/CompanySettings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -141,6 +142,16 @@ const App = () => {
                 <ProtectedRoute session={session}>
                   <AppLayout>
                     <Subscriptions />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute session={session}>
+                  <AppLayout>
+                    <CompanySettings />
                   </AppLayout>
                 </ProtectedRoute>
               }

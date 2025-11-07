@@ -1,11 +1,13 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, FileText, Package, DollarSign, LogOut, UserCog, Building2, CreditCard } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Package, DollarSign, LogOut, UserCog, Building2, CreditCard, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useSubscription } from "@/hooks/use-subscription";
+import { useUserCompany } from "@/hooks/use-user-company";
+import { useQuery } from "@tanstack/react-query";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -16,6 +18,7 @@ const navigation = [
   { name: "Assinaturas", href: "/subscriptions", icon: CreditCard },
   { name: "Empresas", href: "/companies", icon: Building2 },
   { name: "Usuários", href: "/users", icon: UserCog },
+  { name: "Configurações", href: "/settings", icon: Settings },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -24,6 +27,24 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   const { data: userRole } = useUserRole();
   const { data: subscriptionData } = useSubscription();
+  const { data: userCompany } = useUserCompany();
+
+  const { data: company } = useQuery({
+    queryKey: ["company", userCompany?.company_id],
+    queryFn: async () => {
+      if (!userCompany?.company_id) return null;
+      
+      const { data, error } = await supabase
+        .from("companies")
+        .select("logo_url")
+        .eq("id", userCompany.company_id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userCompany?.company_id,
+  });
 
   // Filter navigation based on user role
   const filteredNavigation = navigation.filter((item) => {
@@ -77,8 +98,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Sidebar */}
         <aside className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
         <div className="flex h-16 items-center gap-2 border-b border-sidebar-border px-6">
-          <Package className="h-6 w-6 text-sidebar-primary" />
-          <h1 className="text-lg font-bold text-sidebar-foreground">Gráfica Pro</h1>
+          {company?.logo_url ? (
+            <img 
+              src={company.logo_url} 
+              alt="Logo da empresa" 
+              className="h-10 w-auto object-contain"
+            />
+          ) : (
+            <>
+              <Package className="h-6 w-6 text-sidebar-primary" />
+              <h1 className="text-lg font-bold text-sidebar-foreground">Gráfica Pro</h1>
+            </>
+          )}
         </div>
         <nav className="space-y-1 p-4 flex-1">
           {filteredNavigation.map((item) => {
