@@ -241,6 +241,7 @@ export default function Quotes() {
       let yPosition = 20;
 
       // Cabeçalho com logo e nome da empresa (papel timbrado)
+      let logoWidth = 0;
       if (company?.logo_url) {
         try {
           const img = new Image();
@@ -249,7 +250,15 @@ export default function Quotes() {
           await new Promise((resolve) => {
             img.onload = resolve;
           });
-          doc.addImage(img, "PNG", 15, yPosition, 30, 30);
+          
+          // Manter proporção da imagem
+          const maxHeight = 25;
+          const aspectRatio = img.width / img.height;
+          const height = maxHeight;
+          const width = height * aspectRatio;
+          
+          doc.addImage(img, "PNG", 15, yPosition, width, height);
+          logoWidth = width + 5; // Adiciona espaço após o logo
         } catch (error) {
           console.error("Erro ao carregar logo:", error);
         }
@@ -257,11 +266,11 @@ export default function Quotes() {
 
       doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
-      doc.text(company?.name || "Empresa", company?.logo_url ? 50 : 15, yPosition + 10);
+      doc.text(company?.name || "Empresa", 15 + logoWidth, yPosition + 10);
       
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text("Orçamento", company?.logo_url ? 50 : 15, yPosition + 20);
+      doc.text("Orçamento", 15 + logoWidth, yPosition + 20);
       
       yPosition += 45;
 
