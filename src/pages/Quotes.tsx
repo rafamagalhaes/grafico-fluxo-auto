@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, CheckCircle, ArrowRight, Edit } from "lucide-react";
+import { Plus, CheckCircle, ArrowRight, Edit, FileText } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { useToast } from "@/hooks/use-toast";
 import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,6 +44,21 @@ export default function Quotes() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: userCompany } = useUserCompany();
+
+  const { data: company } = useQuery({
+    queryKey: ["company", userCompany?.company_id],
+    queryFn: async () => {
+      if (!userCompany?.company_id) return null;
+      const { data, error } = await supabase
+        .from("companies")
+        .select("name, logo_url")
+        .eq("id", userCompany.company_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userCompany?.company_id,
+  });
 
   const { data: clients } = useQuery({
     queryKey: ["clients"],
@@ -204,6 +221,152 @@ export default function Quotes() {
     setEditingQuoteId(null);
     setTempQuoteId(null);
     setOpen(true);
+  };
+
+  const handleGeneratePDF = async (quote: Quote) => {
+    try {
+      // Buscar produtos do orçamento
+      const { data: products } = await supabase
+        .from("quote_products")
+        .select("product_name, sale_value")
+        .eq("quote_id", quote.id);
+
+      // Buscar insumos do orçamento
+      const { data: supplies } = await supabase
+        .from("quote_supplies")
+        .select("quantity, adjusted_cost, supplies(name, cost_value)")
+        .eq("quote_id", quote.id);
+
+      const doc = new jsPDF();
+      let yPosition = 20;
+
+      // Cabeçalho com logo e nome da empresa (papel timbrado)
+      if (company?.logo_url) {
+        try {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.src = company.logo_url;
+          await new Promise((resolve) => {
+            img.onload = resolve;
+          });
+          doc.addImage(img, "PNG", 15, yPosition, 30, 30);
+        } catch (error) {
+          console.error("Erro ao carregar logo:", error);
+        }
+      }
+
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
+      doc.text(company?.name || "Empresa", company?.logo_url ? 50 : 15, yPosition + 10);
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text("Orçamento", company?.logo_url ? 50 : 15, yPosition + 20);
+      
+      yPosition += 45;
+
+      // Linha separadora
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, yPosition, 195, yPosition);
+      yPosition += 10;
+
+      // Informações do orçamento
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Informações do Orçamento", 15, yPosition);
+      yPosition += 8;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Código: ${quote.code}`, 15, yPosition);
+      yPosition += 6;
+      doc.text(`Cliente: ${quote.clients.name}`, 15, yPosition);
+      yPosition += 6;
+      doc.text(`Data de Entrega: ${new Date(quote.delivery_date).toLocaleDateString("pt-BR")}`, 15, yPosition);
+      yPosition += 6;
+      doc.text(`Descrição: ${quote.description}`, 15, yPosition);
+      yPosition += 12;
+
+      // Tabela de produtos
+      if (products && products.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Produtos", 15, yPosition);
+        yPosition += 5;
+
+        autoTable(doc, {
+          startY: yPosition,
+          head: [["Produto", "Valor"]],
+          body: products.map((p) => [
+            p.product_name,
+            `R$ ${Number(p.sale_value).toFixed(2)}`,
+          ]),
+          theme: "striped",
+          headStyles: { fillColor: [66, 139, 202] },
+        });
+
+        yPosition = (doc as any).lastAutoTable.finalY + 10;
+      }
+
+      // Tabela de insumos
+      if (supplies && supplies.length > 0) {
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Insumos Utilizados", 15, yPosition);
+        yPosition += 5;
+
+        autoTable(doc, {
+          startY: yPosition,
+          head: [["Insumo", "Quantidade", "Custo Unitário", "Custo Total"]],
+          body: supplies.map((s: any) => [
+            s.supplies.name,
+            s.quantity.toString(),
+            `R$ ${Number(s.adjusted_cost || s.supplies.cost_value).toFixed(2)}`,
+            `R$ ${(Number(s.quantity) * Number(s.adjusted_cost || s.supplies.cost_value)).toFixed(2)}`,
+          ]),
+          theme: "striped",
+          headStyles: { fillColor: [66, 139, 202] },
+        });
+
+        yPosition = (doc as any).lastAutoTable.finalY + 10;
+      }
+
+      // Valores totais
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Resumo Financeiro", 15, yPosition);
+      yPosition += 8;
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Custo Total: R$ ${Number(quote.cost_value).toFixed(2)}`, 15, yPosition);
+      yPosition += 6;
+      doc.text(`Valor de Venda: R$ ${Number(quote.sale_value).toFixed(2)}`, 15, yPosition);
+      yPosition += 6;
+      doc.setFont("helvetica", "bold");
+      doc.text(`Lucro: R$ ${Number(quote.profit_value).toFixed(2)}`, 15, yPosition);
+
+      // Rodapé
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(150);
+        doc.text(
+          `Página ${i} de ${pageCount}`,
+          doc.internal.pageSize.getWidth() / 2,
+          doc.internal.pageSize.getHeight() - 10,
+          { align: "center" }
+        );
+      }
+
+      doc.save(`orcamento-${quote.code}.pdf`);
+      toast({ title: "PDF gerado com sucesso!" });
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast({ title: "Erro ao gerar PDF", variant: "destructive" });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -407,6 +570,22 @@ export default function Quotes() {
                             </TooltipTrigger>
                             <TooltipContent>
                               <p>Editar Orçamento</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                onClick={() => handleGeneratePDF(quote)}
+                              >
+                                <FileText className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Gerar PDF</p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
