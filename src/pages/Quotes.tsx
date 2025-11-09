@@ -308,43 +308,10 @@ export default function Quotes() {
         yPosition = (doc as any).lastAutoTable.finalY + 10;
       }
 
-      // Tabela de insumos
-      if (supplies && supplies.length > 0) {
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text("Insumos Utilizados", 15, yPosition);
-        yPosition += 5;
-
-        autoTable(doc, {
-          startY: yPosition,
-          head: [["Insumo", "Quantidade", "Custo Unitário", "Custo Total"]],
-          body: supplies.map((s: any) => [
-            s.supplies.name,
-            s.quantity.toString(),
-            `R$ ${Number(s.adjusted_cost || s.supplies.cost_value).toFixed(2)}`,
-            `R$ ${(Number(s.quantity) * Number(s.adjusted_cost || s.supplies.cost_value)).toFixed(2)}`,
-          ]),
-          theme: "striped",
-          headStyles: { fillColor: [66, 139, 202] },
-        });
-
-        yPosition = (doc as any).lastAutoTable.finalY + 10;
-      }
-
-      // Valores totais
-      doc.setFontSize(12);
+      // Valor total
+      doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
-      doc.text("Resumo Financeiro", 15, yPosition);
-      yPosition += 8;
-
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Custo Total: R$ ${Number(quote.cost_value).toFixed(2)}`, 15, yPosition);
-      yPosition += 6;
-      doc.text(`Valor de Venda: R$ ${Number(quote.sale_value).toFixed(2)}`, 15, yPosition);
-      yPosition += 6;
-      doc.setFont("helvetica", "bold");
-      doc.text(`Lucro: R$ ${Number(quote.profit_value).toFixed(2)}`, 15, yPosition);
+      doc.text(`Valor Total: R$ ${Number(quote.sale_value).toFixed(2)}`, 15, yPosition);
 
       // Rodapé
       const pageCount = doc.getNumberOfPages();
