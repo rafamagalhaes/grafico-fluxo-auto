@@ -281,10 +281,6 @@ export default function Quotes() {
       doc.text(`Código: ${quote.code}`, 15, yPosition);
       yPosition += 6;
       doc.text(`Cliente: ${quote.clients.name}`, 15, yPosition);
-      yPosition += 6;
-      doc.text(`Data de Entrega: ${new Date(quote.delivery_date).toLocaleDateString("pt-BR")}`, 15, yPosition);
-      yPosition += 6;
-      doc.text(`Descrição: ${quote.description}`, 15, yPosition);
       yPosition += 12;
 
       // Tabela de produtos
