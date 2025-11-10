@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -16,12 +17,16 @@ const clientSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   phone: z.string().min(1, "Telefone é obrigatório"),
   birth_date: z.string().optional(),
+  client_type: z.enum(["fisica", "juridica"]),
+  cnpj: z.string().optional(),
 });
 
 type ClientInput = {
   name: string;
   phone: string;
   birth_date?: string;
+  client_type: "fisica" | "juridica";
+  cnpj?: string;
 };
 
 type Client = {
@@ -30,11 +35,26 @@ type Client = {
   name: string;
   phone: string;
   birth_date: string | null;
+  client_type: "fisica" | "juridica";
+  cnpj: string | null;
+};
+
+const formatCNPJ = (value: string) => {
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length <= 14) {
+    return numbers
+      .replace(/^(\d{2})(\d)/, "$1.$2")
+      .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+      .replace(/\.(\d{3})(\d)/, ".$1/$2")
+      .replace(/(\d{4})(\d)/, "$1-$2");
+  }
+  return value;
 };
 
 export default function Clients() {
   const [open, setOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [clientType, setClientType] = useState<"fisica" | "juridica">("fisica");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: userCompany } = useUserCompany();
@@ -104,10 +124,14 @@ export default function Clients() {
     const rawData: any = {
       name: formData.get("name") as string,
       phone: formData.get("phone") as string,
+      client_type: formData.get("client_type") as "fisica" | "juridica",
     };
 
     const birthDate = formData.get("birth_date") as string;
     if (birthDate) rawData.birth_date = birthDate;
+
+    const cnpj = formData.get("cnpj") as string;
+    if (cnpj) rawData.cnpj = cnpj.replace(/\D/g, "");
 
     try {
       clientSchema.parse(rawData);
@@ -128,7 +152,14 @@ export default function Clients() {
           <h1 className="text-3xl font-bold">Clientes</h1>
           <p className="text-muted-foreground">Gerencie seus clientes</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(isOpen) => {
+          setOpen(isOpen);
+          if (isOpen && !editingClient) {
+            setClientType("fisica");
+          } else if (isOpen && editingClient) {
+            setClientType(editingClient.client_type);
+          }
+        }}>
           <DialogTrigger asChild>
             <Button onClick={() => setEditingClient(null)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -141,9 +172,42 @@ export default function Clients() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
+                <Label>Tipo de Cliente *</Label>
+                <RadioGroup
+                  name="client_type"
+                  value={clientType}
+                  onValueChange={(value) => setClientType(value as "fisica" | "juridica")}
+                  className="flex gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="fisica" id="fisica" />
+                    <Label htmlFor="fisica" className="font-normal cursor-pointer">Pessoa Física</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="juridica" id="juridica" />
+                    <Label htmlFor="juridica" className="font-normal cursor-pointer">Pessoa Jurídica</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+              <div>
                 <Label htmlFor="name">Nome *</Label>
                 <Input id="name" name="name" required defaultValue={editingClient?.name || ""} />
               </div>
+              {clientType === "juridica" && (
+                <div>
+                  <Label htmlFor="cnpj">CNPJ</Label>
+                  <Input
+                    id="cnpj"
+                    name="cnpj"
+                    defaultValue={editingClient?.cnpj ? formatCNPJ(editingClient.cnpj) : ""}
+                    onChange={(e) => {
+                      e.target.value = formatCNPJ(e.target.value);
+                    }}
+                    maxLength={18}
+                    placeholder="00.000.000/0000-00"
+                  />
+                </div>
+              )}
               <div>
                 <Label htmlFor="phone">Telefone *</Label>
                 <Input id="phone" name="phone" required defaultValue={editingClient?.phone || ""} />
@@ -179,7 +243,9 @@ export default function Clients() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Código</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Nome</TableHead>
+                  <TableHead>CNPJ</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Data de Nascimento</TableHead>
                   <TableHead>Ações</TableHead>
@@ -189,7 +255,9 @@ export default function Clients() {
                 {clients?.map((client) => (
                   <TableRow key={client.id}>
                     <TableCell>{client.code || "-"}</TableCell>
+                    <TableCell>{client.client_type === "fisica" ? "Física" : "Jurídica"}</TableCell>
                     <TableCell>{client.name}</TableCell>
+                    <TableCell>{client.cnpj ? formatCNPJ(client.cnpj) : "-"}</TableCell>
                     <TableCell>{client.phone}</TableCell>
                     <TableCell>{client.birth_date ? new Date(client.birth_date).toLocaleDateString("pt-BR") : "-"}</TableCell>
                     <TableCell>
