@@ -18,6 +18,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import SupplySelector from "@/components/SupplySelector";
 import ProductSelector from "@/components/ProductSelector";
+import { z } from "zod";
+
+const quoteSchema = z.object({
+  client_id: z.string().uuid("ID do cliente inválido"),
+  description: z.string().min(1, "Descrição é obrigatória").max(1000, "Descrição deve ter no máximo 1000 caracteres"),
+  cost_value: z.number().min(0, "Custo não pode ser negativo").max(10000000, "Custo muito alto"),
+  sale_value: z.number().positive("Valor de venda deve ser positivo").max(10000000, "Valor muito alto"),
+  delivery_date: z.string().refine(date => new Date(date) >= new Date(new Date().setHours(0, 0, 0, 0)), {
+    message: "Data de entrega deve ser futura"
+  }),
+}).refine(data => data.sale_value >= data.cost_value, {
+  message: "Valor de venda deve ser maior ou igual ao custo",
+  path: ["sale_value"]
+});
 
 type Quote = {
   id: string;
@@ -344,21 +358,32 @@ export default function Quotes() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const data = {
-      customer_id: formData.get("customer_id"),
+    const rawData = {
+      client_id: formData.get("customer_id") as string,
       description: "Orçamento com produtos",
-      delivery_date: formData.get("delivery_date"),
+      delivery_date: formData.get("delivery_date") as string,
       cost_value: costValue,
       sale_value: saleValue,
     };
 
-    if (isEditing) {
-      editMutation.mutate({ id: isEditing.id, ...data });
-    } else if (tempQuoteId) {
-      // Se existe um ID temporário, atualiza o orçamento temporário com os dados finais
-      editMutation.mutate({ id: tempQuoteId, ...data });
-    } else {
-      createMutation.mutate(data);
+    try {
+      const validatedData = quoteSchema.parse(rawData);
+      
+      if (isEditing) {
+        editMutation.mutate({ id: isEditing.id, ...validatedData });
+      } else if (tempQuoteId) {
+        editMutation.mutate({ id: tempQuoteId, ...validatedData });
+      } else {
+        createMutation.mutate(validatedData);
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Erro de validação",
+          description: error.errors[0].message,
+          variant: "destructive"
+        });
+      }
     }
   };
 

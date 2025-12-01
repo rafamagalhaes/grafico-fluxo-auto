@@ -15,6 +15,23 @@ import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { z } from "zod";
+
+const orderSchema = z.object({
+  description: z.string().min(1, "Descrição é obrigatória").max(500, "Descrição deve ter no máximo 500 caracteres"),
+  delivery_date: z.string().refine(date => new Date(date) >= new Date(new Date().setHours(0, 0, 0, 0)), {
+    message: "Data de entrega deve ser futura"
+  }),
+  total_value: z.number().positive("Valor total deve ser positivo").max(10000000, "Valor total muito alto"),
+  has_advance: z.boolean(),
+  advance_value: z.number().min(0, "Adiantamento não pode ser negativo").optional(),
+  quote_id: z.string().uuid().optional().nullable(),
+}).refine(data => {
+  if (data.has_advance && data.advance_value) {
+    return data.advance_value <= data.total_value;
+  }
+  return true;
+}, { message: "Adiantamento não pode exceder valor total", path: ["advance_value"] });
 
 type Order = {
   id: string;
@@ -151,17 +168,30 @@ export default function Orders() {
       });
   }, [orders]);
  
-   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const data = {
-      description: formData.get("description"),
-      delivery_date: formData.get("delivery_date"),
-      sale_value: parseFloat(formData.get("sale_value") as string),
+    const rawData = {
+      description: formData.get("description") as string,
+      delivery_date: formData.get("delivery_date") as string,
+      total_value: parseFloat(formData.get("sale_value") as string),
       has_advance: hasAdvance,
       advance_value: hasAdvance ? parseFloat(formData.get("advance_value") as string) : 0,
+      quote_id: null,
     };
-    createMutation.mutate(data);
+    
+    try {
+      const validatedData = orderSchema.parse(rawData);
+      createMutation.mutate(validatedData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Erro de validação",
+          description: error.errors[0].message,
+          variant: "destructive"
+        });
+      }
+    }
   };
   const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -171,15 +201,33 @@ export default function Orders() {
     const saleValueStr = formData.get("sale_value") as string;
     const advanceValueStr = formData.get("advance_value") as string;
     
-    const data = {
-      description: formData.get("description"),
-      delivery_date: formData.get("delivery_date"),
-      sale_value: parseCurrency(saleValueStr),
+    const rawData = {
+      description: formData.get("description") as string,
+      delivery_date: formData.get("delivery_date") as string,
+      total_value: parseCurrency(saleValueStr),
       has_advance: hasAdvance,
       advance_value: hasAdvance ? parseCurrency(advanceValueStr) : 0,
-      status: editStatus,
+      quote_id: null,
     };
-    updateMutation.mutate({ id: editingOrder.id, data });
+    
+    try {
+      const validatedData = orderSchema.parse(rawData);
+      updateMutation.mutate({ 
+        id: editingOrder.id, 
+        data: {
+          ...validatedData,
+          status: editStatus,
+        }
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Erro de validação",
+          description: error.errors[0].message,
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   const handleEdit = (order: Order) => {
