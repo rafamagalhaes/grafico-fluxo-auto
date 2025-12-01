@@ -18,6 +18,7 @@ const userSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
   role: z.enum(["admin", "user"]),
+  company_id: z.string().uuid("Empresa é obrigatória"),
 });
 
 export default function Users() {
@@ -27,6 +28,20 @@ export default function Users() {
   const { data: userRole } = useUserRole();
   const [open, setOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+
+  // Fetch companies for superadmin
+  const { data: companies } = useQuery({
+    queryKey: ["companies"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id, name")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+    enabled: userRole === "superadmin",
+  });
 
   // Fetch users from auth.users (via admin API)
   const { data: users, isLoading } = useQuery({
@@ -39,7 +54,7 @@ export default function Users() {
   });
 
   const createUserMutation = useMutation({
-    mutationFn: async (data: { email: string; password: string; role: "admin" | "user" }) => {
+    mutationFn: async (data: { email: string; password: string; role: "admin" | "user"; company_id: string }) => {
       // Create user
       const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
         email: data.email,
@@ -54,11 +69,12 @@ export default function Users() {
         .insert([{ user_id: newUser.user.id, role: data.role }]);
       if (roleError) throw roleError;
       
-      // Link to company (admins link to their own company)
-      if (userCompany?.company_id) {
+      // Link to company
+      const companyId = userRole === "superadmin" ? data.company_id : userCompany?.company_id;
+      if (companyId) {
         const { error: companyError } = await supabase
           .from("user_companies")
-          .insert([{ user_id: newUser.user.id, company_id: userCompany.company_id }]);
+          .insert([{ user_id: newUser.user.id, company_id: companyId }]);
         if (companyError) throw companyError;
       }
       
@@ -102,6 +118,7 @@ export default function Users() {
     const email = formData.get("email");
     const password = formData.get("password");
     const role = formData.get("role");
+    const company_id = formData.get("company_id");
 
     if (!email || !password || !role) {
       toast({
@@ -112,12 +129,22 @@ export default function Users() {
       return;
     }
 
+    if (userRole === "superadmin" && !company_id) {
+      toast({
+        title: "Erro de validação",
+        description: "Empresa é obrigatória",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const validatedData = userSchema.parse({ 
         email: email.toString(), 
         password: password.toString(),
-        role: role.toString()
-      }) as { email: string; password: string; role: "admin" | "user" };
+        role: role.toString(),
+        company_id: userRole === "superadmin" ? company_id?.toString() : userCompany?.company_id
+      }) as { email: string; password: string; role: "admin" | "user"; company_id: string };
       createUserMutation.mutate(validatedData);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -190,6 +217,23 @@ export default function Users() {
                   </SelectContent>
                 </Select>
               </div>
+              {userRole === "superadmin" && (
+                <div className="space-y-2">
+                  <Label htmlFor="company_id">Empresa</Label>
+                  <Select name="company_id" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies?.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <Button type="submit" className="w-full" disabled={createUserMutation.isPending}>
                 {createUserMutation.isPending ? "Criando..." : "Criar Usuário"}
               </Button>
