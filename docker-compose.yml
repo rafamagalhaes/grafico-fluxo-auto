@@ -8,10 +8,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Variáveis de ambiente do Next.js (se houver)
-      # Certifique-se de que estas variáveis apontem para o serviço 'db'
       NEXT_PUBLIC_SUPABASE_URL: http://db:5432
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: your_anon_key_here # Substitua pela sua chave
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
       NODE_ENV: production
     depends_on:
       - db
@@ -22,9 +20,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mysecretpassword
-      POSTGRES_DB: app_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./supabase/migrations:/docker-entrypoint-initdb.d
@@ -38,10 +36,10 @@ services:
     environment:
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: mysecretpassword
-      POSTGRES_DB: app_db
-      JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
       - db
     restart: always
