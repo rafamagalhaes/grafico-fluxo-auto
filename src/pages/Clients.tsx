@@ -63,7 +63,7 @@ export default function Clients() {
     queryKey: ["clients"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("customers")
+        .from("clients")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -74,7 +74,7 @@ export default function Clients() {
   const createMutation = useMutation({
     mutationFn: async (data: ClientInput) => {
       if (!userCompany?.company_id) throw new Error("Company not found");
-      const { error } = await supabase.from("customers").insert([{ ...data, company_id: userCompany.company_id }]);
+      const { error } = await supabase.from("clients").insert([{ ...data, company_id: userCompany.company_id }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -89,7 +89,7 @@ export default function Clients() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: ClientInput }) => {
-      const { error } = await supabase.from("customers").update(data).eq("id", id);
+      const { error } = await supabase.from("clients").update(data).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -105,7 +105,7 @@ export default function Clients() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("customers").delete().eq("id", id);
+      const { error } = await supabase.from("clients").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

@@ -63,7 +63,7 @@ export default function Quotes() {
   const { data: clients } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("customers").select("id, name");
+      const { data, error } = await supabase.from("clients").select("id, name");
       if (error) throw error;
       return data;
     },
@@ -74,7 +74,7 @@ export default function Quotes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("*, customers!customer_id(name), orders(id, status)")
+        .select("*, clients!client_id(name), active_orders(id, status)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as unknown as Quote[];
@@ -111,7 +111,7 @@ export default function Quotes() {
 
   const approveMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("quotes").update({ is_approved: true }).eq("id", id);
+      const { error } = await supabase.from("quotes").update({ approved: true }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -128,11 +128,11 @@ export default function Quotes() {
     mutationFn: async (data: { quote: Quote, sale_value: number, has_advance: boolean, advance_value: number }) => {
       if (!userCompany?.company_id) throw new Error("Company not found");
       const { quote, sale_value, has_advance, advance_value } = data;
-      const { error } = await supabase.from("orders").insert([{
+      const { error } = await supabase.from("active_orders").insert([{
         quote_id: quote.id,
         description: quote.description,
         delivery_date: quote.delivery_date,
-        sale_value: sale_value,
+        total_value: sale_value,
         has_advance: has_advance,
         advance_value: advance_value,
         company_id: userCompany.company_id,
@@ -153,7 +153,7 @@ export default function Quotes() {
   const cancelOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
       const { error } = await supabase
-        .from("orders")
+        .from("active_orders")
         .update({ status: "cancelado" })
         .eq("id", orderId);
       if (error) throw error;
@@ -178,7 +178,7 @@ export default function Quotes() {
             delivery_date: new Date().toISOString().split("T")[0],
             cost_value: 0,
             sale_value: 0,
-            customer_id: clients?.[0]?.id || null,
+            client_id: clients?.[0]?.id || null,
             company_id: userCompany.company_id,
           },
         ])
