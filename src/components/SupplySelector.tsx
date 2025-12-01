@@ -1,6 +1,6 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,6 +10,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Trash2, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useUserCompany } from "@/hooks/use-user-company";
+
+// Funções auxiliares para máscara de moeda
+const formatCurrency = (value: number): string => {
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const parseCurrency = (value: string): number => {
+  const cleaned = value.replace(/[^\d,]/g, "").replace(",", ".");
+  return parseFloat(cleaned) || 0;
+};
 
 type Supply = {
   id: string;
@@ -37,8 +51,10 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
   const [selectedSupply, setSelectedSupply] = useState<string>("");
   const [quantity, setQuantity] = useState<number>(1);
   const [adjustedCost, setAdjustedCost] = useState<string>("");
+  const formRef = useRef<HTMLFormElement | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { data: userCompany } = useUserCompany();
 
   const { data: supplies } = useQuery({
     queryKey: ["supplies"],
@@ -64,10 +80,10 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
   });
 
   const createSupplyMutation = useMutation({
-    mutationFn: async (data: { code?: string; name: string; cost_value: number }) => {
+    mutationFn: async (data: { code?: string; name: string; cost_value: number; company_id: string }) => {
       const { data: newSupply, error } = await supabase
         .from("supplies")
-        .insert([data])
+        .insert([{ ...data }])
         .select()
         .single();
       if (error) throw error;
@@ -76,6 +92,13 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["supplies"] });
       toast({ title: "Insumo cadastrado com sucesso!" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Erro ao cadastrar insumo", 
+        description: error.message,
+        variant: "destructive" 
+      });
     },
   });
 
@@ -115,7 +138,7 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
       quote_id: quoteId,
       supply_id: selectedSupply,
       quantity,
-      adjusted_cost: adjustedCost ? parseFloat(adjustedCost) : undefined,
+      adjusted_cost: adjustedCost ? parseCurrency(adjustedCost) : undefined,
     });
     
     // Reset form
@@ -124,17 +147,37 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
     setAdjustedCost("");
   };
 
-  const handleCreateSupply = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  const handleCreateSupply = (form: HTMLFormElement) => {
+    const formData = new FormData(form);
+    const costValueString = (formData.get("cost_value") as string).replace(",", ".");
+    const costValue = parseFloat(costValueString);
+    
+    if (isNaN(costValue) || costValue <= 0) {
+      toast({ 
+        title: "Erro", 
+        description: "Valor de custo inválido",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    if (!userCompany?.company_id) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível identificar a empresa do usuário.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const data = {
       name: formData.get("name") as string,
-      cost_value: parseFloat(formData.get("cost_value") as string),
+      cost_value: costValue,
+      company_id: userCompany.company_id as string,
     };
     createSupplyMutation.mutate(data);
-    (e.target as HTMLFormElement).reset();
+    form.reset();
   };
-
   const totalCost = useMemo(() => {
     if (!quoteSupplies) return 0;
     const total = quoteSupplies.reduce((sum, qs) => {
@@ -151,7 +194,7 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
   }, [quoteSupplies, onCostCalculated]);
   
   const selectedSupplyData = supplies?.find(s => s.id === selectedSupply);
-  const unitCost = adjustedCost ? parseFloat(adjustedCost) : (selectedSupplyData?.cost_value || 0);
+  const unitCost = adjustedCost ? parseCurrency(adjustedCost) : (selectedSupplyData?.cost_value || 0);
   const lineTotal = unitCost * quantity;
 
   return (
@@ -173,7 +216,7 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
               <SelectContent>
                 {supplies?.map((supply) => (
                   <SelectItem key={supply.id} value={supply.id}>
-                    {supply.name} - R$ {Number(supply.cost_value).toFixed(2)}
+                    {supply.name} - R$ {formatCurrency(supply.cost_value)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -185,8 +228,8 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
             <Input
               id="quantity"
               type="number"
-              step="0.01"
-              min="0.01"
+              step="1"
+              min="1"
               value={quantity}
               onChange={(e) => setQuantity(parseFloat(e.target.value) || 1)}
               disabled={!selectedSupply}
@@ -194,15 +237,19 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
           </div>
           
           <div>
-            <Label htmlFor="adjusted_cost">Valor Unitário</Label>
+            <Label htmlFor="adjusted_cost">Valor Unitário (R$)</Label>
             <Input
               id="adjusted_cost"
-              type="number"
-              step="0.01"
-              min="0"
+              type="text"
               value={adjustedCost}
-              onChange={(e) => setAdjustedCost(e.target.value)}
-              placeholder={selectedSupplyData ? selectedSupplyData.cost_value.toString() : "0.00"}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Permite apenas números e vírgula
+                if (/^[\d,]*$/.test(value)) {
+                  setAdjustedCost(value);
+                }
+              }}
+              placeholder={selectedSupplyData ? formatCurrency(selectedSupplyData.cost_value) : "0,00"}
               disabled={!selectedSupply}
             />
           </div>
@@ -211,9 +258,9 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="text-sm">
             <span className="text-muted-foreground">Valor Total da Linha: </span>
-            <span className="font-semibold text-lg">R$ {lineTotal.toFixed(2)}</span>
+            <span className="font-semibold text-lg">R$ {formatCurrency(lineTotal)}</span>
           </div>
-          <Button onClick={handleAddSupply} disabled={!selectedSupply}>
+          <Button type="button" onClick={handleAddSupply} disabled={!selectedSupply}>
             <Plus className="mr-2 h-4 w-4" />
             Adicionar Insumo
           </Button>
@@ -233,7 +280,7 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
             <DialogHeader>
               <DialogTitle>Cadastrar Novo Insumo</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleCreateSupply} className="space-y-4">
+            <form ref={formRef} className="space-y-4">
               <div>
                 <Label htmlFor="name">Nome do Insumo *</Label>
                 <Input id="name" name="name" required />
@@ -243,7 +290,11 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
                 <Input id="cost_value" name="cost_value" type="number" step="0.01" min="0" required />
               </div>
               <p className="text-xs text-muted-foreground">O código do insumo será gerado automaticamente</p>
-              <Button type="submit" className="w-full">
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => formRef.current && handleCreateSupply(formRef.current)}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Cadastrar Insumo
               </Button>
@@ -273,8 +324,8 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
                   <TableRow key={qs.id}>
                     <TableCell className="font-medium">{qs.supplies.name}</TableCell>
                     <TableCell className="text-right">{qs.quantity}</TableCell>
-                    <TableCell className="text-right">R$ {Number(unitCost).toFixed(2)}</TableCell>
-                    <TableCell className="text-right font-semibold">R$ {lineCost.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">R$ {formatCurrency(unitCost)}</TableCell>
+                    <TableCell className="text-right font-semibold">R$ {formatCurrency(lineCost)}</TableCell>
                     <TableCell className="text-center">
                       <Button
                         size="sm"
@@ -295,7 +346,7 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
             <div className="flex flex-col">
               <Label className="text-base font-semibold">Valor Total de Custo:</Label>
               <div className="text-3xl font-bold text-primary bg-background px-6 py-2 rounded-md border-2 border-primary">
-                R$ {totalCost.toFixed(2)}
+                R$ {formatCurrency(totalCost)}
               </div>
             </div>
             <Button onClick={onClose} className="bg-green-500 hover:bg-green-600">Finalizar</Button>

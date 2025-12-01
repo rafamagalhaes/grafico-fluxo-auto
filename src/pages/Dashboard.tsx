@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, Package, DollarSign, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export default function Dashboard() {
@@ -9,11 +10,14 @@ export default function Dashboard() {
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
       const [clients, quotes, orders, transactions] = await Promise.all([
-        supabase.from("clients").select("*", { count: "exact", head: true }),
+        supabase.from("customers").select("*", { count: "exact", head: true }),
         supabase.from("quotes").select("*", { count: "exact", head: true }),
-        supabase.from("active_orders").select("*", { count: "exact", head: true }),
-        supabase.from("financial_transactions").select("amount, type, paid"),
+        supabase.from("orders").select("*", { count: "exact", head: true }),
+        supabase.from("transactions").select("amount, type, paid"),
       ]);
+
+      const ordersReady = orders.data?.filter((o: any) => o.status === "pedido_pronto").length || 0;
+      const ordersDeliveredPending = orders.data?.filter((o: any) => o.status === "entregue_pendente").length || 0;
 
       const revenue = transactions.data
         ?.filter((t) => t.type === "receita" && t.paid)
@@ -31,11 +35,50 @@ export default function Dashboard() {
         clientsCount: clients.count || 0,
         quotesCount: quotes.count || 0,
         ordersCount: orders.count || 0,
+        ordersReady,
+        ordersDeliveredPending,
         revenue,
         expenses,
         profit: revenue - expenses,
         pending,
       };
+    },
+  });
+
+  const { data: pendingQuotes } = useQuery({
+    queryKey: ["dashboard-pending-quotes"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("quotes")
+        .select("id, code, description, delivery_date, is_approved")
+        .eq("is_approved", false)
+        .order("delivery_date", { ascending: true });
+
+      return (data || []).map((q) => ({
+        ...q,
+        statusLabel: "Aguardando Aprovação",
+      }));
+    },
+  });
+
+  const { data: pendingOrders } = useQuery({
+    queryKey: ["dashboard-pending-orders"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("orders")
+        .select("id, code, description, delivery_date, status")
+        .in("status", ["em_andamento", "in_progress", "pedido_pronto", "entregue_pendente"])
+        .order("delivery_date", { ascending: true });
+
+      return (data || []).map((o) => ({
+        ...o,
+        statusLabel:
+          o.status === "em_andamento" || o.status === "in_progress"
+            ? "Em Andamento"
+            : o.status === "pedido_pronto"
+            ? "Pronto"
+            : "Entregue (Pendente)",
+      }));
     },
   });
 
@@ -59,6 +102,18 @@ export default function Dashboard() {
       color: "text-primary",
     },
     {
+      title: "Pedidos Prontos",
+      value: stats?.ordersReady || 0,
+      icon: Package,
+      color: "text-blue-500",
+    },
+    {
+      title: "Entregues (Pendente)",
+      value: stats?.ordersDeliveredPending || 0,
+      icon: Package,
+      color: "text-warning",
+    },
+    {
       title: "Receitas",
       value: `R$ ${stats?.revenue.toFixed(2) || "0.00"}`,
       icon: DollarSign,
@@ -78,6 +133,17 @@ export default function Dashboard() {
     },
   ];
 
+  const isUrgent = (deliveryDate: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const delivery = new Date(deliveryDate);
+    delivery.setHours(0, 0, 0, 0);
+    
+    return delivery.getTime() <= tomorrow.getTime();
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -85,7 +151,7 @@ export default function Dashboard() {
         <p className="text-muted-foreground">Visão geral do sistema</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (
           <Card key={card.title} className="shadow-sm transition-shadow hover:shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -97,6 +163,98 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Orçamentos Pendentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!pendingQuotes || pendingQuotes.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">Nenhum orçamento pendente</p>
+            ) : (
+              <div className="space-y-2">
+                {pendingQuotes.map((quote) => (
+                  <div
+                    key={quote.id}
+                    className={cn(
+                      "flex items-center justify-between p-3 rounded-lg border",
+                      isUrgent(quote.delivery_date) && "border-red-500 bg-red-50 dark:bg-red-950"
+                    )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{quote.code}</span>
+                        {isUrgent(quote.delivery_date) && (
+                          <Badge variant="destructive" className="text-xs">
+                            URGENTE
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate mt-1">
+                        {quote.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 ml-4">
+                      <div className="text-right">
+                        <p className="text-sm font-medium">
+                          {new Date(quote.delivery_date).toLocaleDateString("pt-BR")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{quote.statusLabel}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Pedidos Pendentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!pendingOrders || pendingOrders.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">Nenhum pedido pendente</p>
+            ) : (
+              <div className="space-y-2">
+                {pendingOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    className={cn(
+                      "flex items-center justify-between p-3 rounded-lg border",
+                      isUrgent(order.delivery_date) && "border-red-500 bg-red-50 dark:bg-red-950"
+                    )}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{order.code}</span>
+                        {isUrgent(order.delivery_date) && (
+                          <Badge variant="destructive" className="text-xs">
+                            URGENTE
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate mt-1">
+                        {order.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 ml-4">
+                      <div className="text-right">
+                        <p className="text-sm font-medium">
+                          {new Date(order.delivery_date).toLocaleDateString("pt-BR")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{order.statusLabel}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

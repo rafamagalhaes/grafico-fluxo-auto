@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Order = {
   id: string;
@@ -22,7 +23,7 @@ type Order = {
   delivery_date: string;
   has_advance: boolean;
   advance_value: number;
-  total_value: number;
+  sale_value: number;
   pending_value: number;
   status: string;
 };
@@ -32,6 +33,7 @@ export default function Orders() {
   const [editOpen, setEditOpen] = useState(false);
   const [hasAdvance, setHasAdvance] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [editStatus, setEditStatus] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: userCompany } = useUserCompany();
@@ -40,7 +42,7 @@ export default function Orders() {
     queryKey: ["orders"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("active_orders")
+        .from("orders")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -51,7 +53,7 @@ export default function Orders() {
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       if (!userCompany?.company_id) throw new Error("Company not found");
-      const { error } = await supabase.from("active_orders").insert([{ ...data, company_id: userCompany.company_id }]);
+      const { error } = await supabase.from("orders").insert([{ ...data, company_id: userCompany.company_id }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -65,23 +67,34 @@ export default function Orders() {
   const createRevenueMutation = useMutation({
     mutationFn: async (data: { amount: number; description: string; order_id: string }) => {
       if (!userCompany?.company_id) throw new Error("Company not found");
-      const { error } = await supabase.from("financial_transactions").insert([{
-        amount: data.amount,
-        type: "receita",
-        description: `Receita do Pedido #${data.order_id}: ${data.description}`,
-        due_date: new Date().toISOString().split('T')[0], // Data de hoje como vencimento
-        order_id: data.order_id,
-        paid: true, // Assumindo que a receita é registrada como paga ao concluir o pedido
-        paid_date: new Date().toISOString().split('T')[0],
-        company_id: userCompany.company_id,
-      }]);
-      if (error) throw error;
+      
+      // Verificar se já existe uma transação para este pedido
+      const { data: existingTransaction } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("order_id", data.order_id)
+        .maybeSingle();
+      
+      // Só criar se não existir
+      if (!existingTransaction) {
+        const { error } = await supabase.from("transactions").insert([{
+          amount: data.amount,
+          type: "receita",
+          description: `Receita do Pedido #${data.order_id}: ${data.description}`,
+          due_date: new Date().toISOString().split('T')[0],
+          order_id: data.order_id,
+          paid: true,
+          paid_date: new Date().toISOString().split('T')[0],
+          company_id: userCompany.company_id,
+        }]);
+        if (error) throw error;
+      }
     },
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { data, error } = await supabase.from("active_orders").update({ status }).eq("id", id).select("*").single();
+      const { data, error } = await supabase.from("orders").update({ status }).eq("id", id).select("*").single();
       if (error) throw error;
       return { order: data, status };
     },
@@ -91,7 +104,7 @@ export default function Orders() {
 
       if (result.status === "concluido") {
         createRevenueMutation.mutate({
-          amount: result.order.total_value,
+          amount: result.order.sale_value,
           description: result.order.description,
           order_id: result.order.id,
         });
@@ -101,42 +114,70 @@ export default function Orders() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const { error } = await supabase.from("active_orders").update(data).eq("id", id);
+      const { data: order, error } = await supabase.from("orders").update(data).eq("id", id).select("*").single();
       if (error) throw error;
+      return { order, status: data.status, previousStatus: editingOrder?.status };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
       setEditOpen(false);
       setEditingOrder(null);
       setHasAdvance(false);
       toast({ title: "Pedido atualizado com sucesso!" });
+
+      // Criar receita se o status for "concluido" (seja mudança de status ou manutenção do status)
+      if (result.status === "concluido") {
+        createRevenueMutation.mutate({
+          amount: result.order.sale_value,
+          description: result.order.description,
+          order_id: result.order.id,
+        });
+      }
     },
   });
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    if (!orders) return;
+
+    orders
+      .filter((order) => order.status === "concluido")
+      .forEach((order) => {
+        createRevenueMutation.mutate({
+          amount: order.sale_value,
+          description: order.description,
+          order_id: order.id,
+        });
+      });
+  }, [orders]);
+ 
+   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const data = {
       description: formData.get("description"),
       delivery_date: formData.get("delivery_date"),
-      total_value: parseFloat(formData.get("total_value") as string),
+      sale_value: parseFloat(formData.get("sale_value") as string),
       has_advance: hasAdvance,
       advance_value: hasAdvance ? parseFloat(formData.get("advance_value") as string) : 0,
     };
     createMutation.mutate(data);
   };
-
   const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingOrder) return;
     
     const formData = new FormData(e.currentTarget);
+    const saleValueStr = formData.get("sale_value") as string;
+    const advanceValueStr = formData.get("advance_value") as string;
+    
     const data = {
       description: formData.get("description"),
       delivery_date: formData.get("delivery_date"),
-      total_value: parseFloat(formData.get("total_value") as string),
+      sale_value: parseCurrency(saleValueStr),
       has_advance: hasAdvance,
-      advance_value: hasAdvance ? parseFloat(formData.get("advance_value") as string) : 0,
+      advance_value: hasAdvance ? parseCurrency(advanceValueStr) : 0,
+      status: editStatus,
     };
     updateMutation.mutate({ id: editingOrder.id, data });
   };
@@ -144,16 +185,31 @@ export default function Orders() {
   const handleEdit = (order: Order) => {
     setEditingOrder(order);
     setHasAdvance(order.has_advance);
+    setEditStatus(order.status);
     setEditOpen(true);
+  };
+
+  const formatCurrency = (value: number): string => {
+    return value.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const parseCurrency = (value: string): number => {
+    return parseFloat(value.replace(/\./g, "").replace(",", ".")) || 0;
   };
 
   const getStatusBadge = (status: string) => {
     const variants = {
+      in_progress: { label: "Em Andamento", className: "bg-primary" },
       em_andamento: { label: "Em Andamento", className: "bg-primary" },
+      pedido_pronto: { label: "Pedido Pronto", className: "bg-blue-500" },
+      entregue_pendente: { label: "Entregue (Pendente Pagamento)", className: "bg-warning" },
       concluido: { label: "Concluído", className: "bg-accent" },
       cancelado: { label: "Cancelado", className: "bg-destructive" },
     };
-    const variant = variants[status as keyof typeof variants];
+    const variant = variants[status as keyof typeof variants] || { label: "Desconhecido", className: "bg-secondary" };
     return <Badge className={variant.className}>{variant.label}</Badge>;
   };
 
@@ -185,8 +241,8 @@ export default function Orders() {
                 <Input id="delivery_date" name="delivery_date" type="date" required />
               </div>
               <div>
-                <Label htmlFor="total_value">Valor Total *</Label>
-                <Input id="total_value" name="total_value" type="number" step="0.01" required />
+                <Label htmlFor="sale_value">Valor Total *</Label>
+                <Input id="sale_value" name="sale_value" type="number" step="0.01" required />
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="has_advance" checked={hasAdvance} onCheckedChange={(checked) => setHasAdvance(checked === true)} />
@@ -231,7 +287,7 @@ export default function Orders() {
                     <TableCell>{order.code}</TableCell>
                     <TableCell className="max-w-xs truncate">{order.description}</TableCell>
                     <TableCell>{new Date(order.delivery_date).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell>R$ {Number(order.total_value).toFixed(2)}</TableCell>
+                    <TableCell>R$ {Number(order.sale_value).toFixed(2)}</TableCell>
                     <TableCell>
                       {order.has_advance ? `R$ ${Number(order.advance_value).toFixed(2)}` : "-"}
                     </TableCell>
@@ -241,13 +297,13 @@ export default function Orders() {
                     <TableCell>{getStatusBadge(order.status)}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        {order.status === "em_andamento" && (
+                        {(order.status === "em_andamento" || order.status === "in_progress") && (
                           <>
                             <Button
                               size="sm"
-                              onClick={() => updateStatusMutation.mutate({ id: order.id, status: "concluido" })}
+                              onClick={() => updateStatusMutation.mutate({ id: order.id, status: "pedido_pronto" })}
                             >
-                              Concluir
+                              Marcar como Pronto
                             </Button>
                             <Button
                               size="sm"
@@ -280,6 +336,31 @@ export default function Orders() {
                               </AlertDialogContent>
                             </AlertDialog>
                           </>
+                        )}
+                        {order.status === "pedido_pronto" && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => updateStatusMutation.mutate({ id: order.id, status: "entregue_pendente" })}
+                            >
+                              Entregar (Pendente)
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateStatusMutation.mutate({ id: order.id, status: "concluido" })}
+                            >
+                              Concluir
+                            </Button>
+                          </>
+                        )}
+                        {order.status === "entregue_pendente" && (
+                          <Button
+                            size="sm"
+                            onClick={() => updateStatusMutation.mutate({ id: order.id, status: "concluido" })}
+                          >
+                            Concluir
+                          </Button>
                         )}
                       </div>
                     </TableCell>
@@ -317,15 +398,33 @@ export default function Orders() {
               />
             </div>
             <div>
-              <Label htmlFor="edit_total_value">Valor Total *</Label>
+              <Label htmlFor="edit_sale_value">Valor Total *</Label>
               <Input 
-                id="edit_total_value" 
-                name="total_value" 
-                type="number" 
-                step="0.01" 
-                defaultValue={editingOrder?.total_value}
+                id="edit_sale_value" 
+                name="sale_value" 
+                placeholder="0,00"
+                defaultValue={editingOrder ? formatCurrency(editingOrder.sale_value) : ""}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^\d,]/g, "");
+                  e.target.value = value;
+                }}
                 required 
               />
+            </div>
+            <div>
+              <Label htmlFor="edit_status">Status do Pedido *</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="em_andamento">Em andamento</SelectItem>
+                  <SelectItem value="pedido_pronto">Pronto</SelectItem>
+                  <SelectItem value="entregue_pendente">Entregue (pendente de pagamento)</SelectItem>
+                  <SelectItem value="concluido">Finalizado (Pago)</SelectItem>
+                  <SelectItem value="cancelado">Cancelado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox 
@@ -341,9 +440,12 @@ export default function Orders() {
                 <Input 
                   id="edit_advance_value" 
                   name="advance_value" 
-                  type="number" 
-                  step="0.01" 
-                  defaultValue={editingOrder?.advance_value}
+                  placeholder="0,00"
+                  defaultValue={editingOrder ? formatCurrency(editingOrder.advance_value || 0) : ""}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^\d,]/g, "");
+                    e.target.value = value;
+                  }}
                   required 
                 />
               </div>

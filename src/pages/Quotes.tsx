@@ -27,9 +27,9 @@ type Quote = {
   cost_value: number;
   sale_value: number;
   profit_value: number;
-  approved: boolean;
-  clients: { name: string };
-  active_orders: { id: string; status: string }[]; // Adicionado para incluir o pedido ativo
+  is_approved: boolean;
+  customers: { name: string };
+  orders: { id: string; status: string }[];
 };
 
 export default function Quotes() {
@@ -63,7 +63,7 @@ export default function Quotes() {
   const { data: clients } = useQuery({
     queryKey: ["clients"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clients").select("id, name");
+      const { data, error } = await supabase.from("customers").select("id, name");
       if (error) throw error;
       return data;
     },
@@ -74,10 +74,10 @@ export default function Quotes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("*, clients(name), active_orders(id, status)")
+        .select("*, customers!customer_id(name), orders(id, status)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as Quote[];
+      return data as unknown as Quote[];
     },
   });
 
@@ -111,7 +111,7 @@ export default function Quotes() {
 
   const approveMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("quotes").update({ approved: true }).eq("id", id);
+      const { error } = await supabase.from("quotes").update({ is_approved: true }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -125,18 +125,18 @@ export default function Quotes() {
   };
 
   const convertToOrderMutation = useMutation({
-    mutationFn: async (data: { quote: Quote, total_value: number, has_advance: boolean, advance_value: number }) => {
+    mutationFn: async (data: { quote: Quote, sale_value: number, has_advance: boolean, advance_value: number }) => {
       if (!userCompany?.company_id) throw new Error("Company not found");
-      const { quote, total_value, has_advance, advance_value } = data;
-      const { error } = await supabase.from("active_orders").insert([{
+      const { quote, sale_value, has_advance, advance_value } = data;
+      const { error } = await supabase.from("orders").insert([{
         quote_id: quote.id,
         description: quote.description,
         delivery_date: quote.delivery_date,
-        total_value: total_value,
+        sale_value: sale_value,
         has_advance: has_advance,
         advance_value: advance_value,
         company_id: userCompany.company_id,
-      }]);
+      } as any]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -153,7 +153,7 @@ export default function Quotes() {
   const cancelOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
       const { error } = await supabase
-        .from("active_orders")
+        .from("orders")
         .update({ status: "cancelado" })
         .eq("id", orderId);
       if (error) throw error;
@@ -178,7 +178,7 @@ export default function Quotes() {
             delivery_date: new Date().toISOString().split("T")[0],
             cost_value: 0,
             sale_value: 0,
-            client_id: clients?.[0]?.id || null,
+            customer_id: clients?.[0]?.id || null,
             company_id: userCompany.company_id,
           },
         ])
@@ -289,7 +289,7 @@ export default function Quotes() {
       doc.setFont("helvetica", "normal");
       doc.text(`Código: ${quote.code}`, 15, yPosition);
       yPosition += 6;
-      doc.text(`Cliente: ${quote.clients.name}`, 15, yPosition);
+      doc.text(`Cliente: ${quote.customers.name}`, 15, yPosition);
       yPosition += 12;
 
       // Tabela de produtos
@@ -345,11 +345,11 @@ export default function Quotes() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const data = {
-      client_id: formData.get("client_id"),
-      description: "Orçamento com produtos", // Descrição padrão
+      customer_id: formData.get("customer_id"),
+      description: "Orçamento com produtos",
       delivery_date: formData.get("delivery_date"),
-      cost_value: costValue, // Usar o valor do estado
-      sale_value: saleValue, // Usar o valor total calculado
+      cost_value: costValue,
+      sale_value: saleValue,
     };
 
     if (isEditing) {
@@ -398,8 +398,8 @@ export default function Quotes() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="client_id">Cliente *</Label>
-                <Select name="client_id" required defaultValue={(isEditing as any)?.client_id}>
+                <Label htmlFor="customer_id">Cliente *</Label>
+                <Select name="customer_id" required defaultValue={(isEditing as any)?.customer_id}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o cliente" />
                   </SelectTrigger>
@@ -514,14 +514,14 @@ export default function Quotes() {
                 {quotes?.map((quote) => (
                   <TableRow key={quote.id}>
                     <TableCell>{quote.code}</TableCell>
-                    <TableCell>{quote.clients.name}</TableCell>
+                    <TableCell>{quote.customers.name}</TableCell>
                     <TableCell className="max-w-xs truncate">{quote.description}</TableCell>
                     <TableCell>{new Date(quote.delivery_date).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell>R$ {Number(quote.cost_value).toFixed(2)}</TableCell>
                     <TableCell>R$ {Number(quote.sale_value).toFixed(2)}</TableCell>
                     <TableCell className="text-accent font-semibold">R$ {Number(quote.profit_value).toFixed(2)}</TableCell>
                     <TableCell>
-                      {quote.approved ? (
+                      {quote.is_approved ? (
                         <Badge className="bg-accent">Aprovado</Badge>
                       ) : (
                         <Badge variant="secondary">Pendente</Badge>
@@ -561,13 +561,13 @@ export default function Quotes() {
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        {!quote.approved && (
+                        {!quote.is_approved && (
                           <Button size="sm" onClick={() => approveMutation.mutate(quote.id)}>
                             <CheckCircle className="mr-1 h-4 w-4" />
                             Aprovar
                           </Button>
                         )}
-                        {quote.approved && quote.active_orders.length === 0 && (
+                        {quote.is_approved && quote.orders.length === 0 && (
                           <Button size="sm" variant="outline" onClick={() => handleConvert(quote)}>
                             <ArrowRight className="mr-1 h-4 w-4" />
                             Converter em Pedido
@@ -602,7 +602,7 @@ export default function Quotes() {
                 
                 convertToOrderMutation.mutate({
                   quote: convertingQuote,
-                  total_value: totalValue,
+                  sale_value: totalValue,
                   has_advance: hasAdvance,
                   advance_value: advanceValue,
                 });
