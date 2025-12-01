@@ -27,9 +27,9 @@ type Quote = {
   cost_value: number;
   sale_value: number;
   profit_value: number;
-  is_approved: boolean;
-  customers: { name: string };
-  orders: { id: string; status: string }[];
+  approved: boolean;
+  clients: { name: string };
+  active_orders: { id: string; status: string }[];
 };
 
 export default function Quotes() {
@@ -289,7 +289,7 @@ export default function Quotes() {
       doc.setFont("helvetica", "normal");
       doc.text(`Código: ${quote.code}`, 15, yPosition);
       yPosition += 6;
-      doc.text(`Cliente: ${quote.customers.name}`, 15, yPosition);
+      doc.text(`Cliente: ${quote.clients.name}`, 15, yPosition);
       yPosition += 12;
 
       // Tabela de produtos
@@ -514,14 +514,14 @@ export default function Quotes() {
                 {quotes?.map((quote) => (
                   <TableRow key={quote.id}>
                     <TableCell>{quote.code}</TableCell>
-                    <TableCell>{quote.customers.name}</TableCell>
+                    <TableCell>{quote.clients.name}</TableCell>
                     <TableCell className="max-w-xs truncate">{quote.description}</TableCell>
                     <TableCell>{new Date(quote.delivery_date).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell>R$ {Number(quote.cost_value).toFixed(2)}</TableCell>
                     <TableCell>R$ {Number(quote.sale_value).toFixed(2)}</TableCell>
                     <TableCell className="text-accent font-semibold">R$ {Number(quote.profit_value).toFixed(2)}</TableCell>
                     <TableCell>
-                      {quote.is_approved ? (
+                      {quote.approved ? (
                         <Badge className="bg-accent">Aprovado</Badge>
                       ) : (
                         <Badge variant="secondary">Pendente</Badge>
@@ -561,13 +561,13 @@ export default function Quotes() {
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
-                        {!quote.is_approved && (
+                        {!quote.approved && (
                           <Button size="sm" onClick={() => approveMutation.mutate(quote.id)}>
                             <CheckCircle className="mr-1 h-4 w-4" />
                             Aprovar
                           </Button>
                         )}
-                        {quote.is_approved && quote.orders.length === 0 && (
+                        {quote.approved && quote.active_orders.length === 0 && (
                           <Button size="sm" variant="outline" onClick={() => handleConvert(quote)}>
                             <ArrowRight className="mr-1 h-4 w-4" />
                             Converter em Pedido
