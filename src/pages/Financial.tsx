@@ -13,6 +13,15 @@ import { Plus, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
+import { z } from "zod";
+
+const transactionSchema = z.object({
+  type: z.enum(["receita", "despesa"], { errorMap: () => ({ message: "Tipo deve ser receita ou despesa" }) }),
+  description: z.string().min(1, "Descrição é obrigatória").max(500, "Descrição deve ter no máximo 500 caracteres"),
+  amount: z.number().positive("Valor deve ser positivo").max(10000000, "Valor muito alto"),
+  due_date: z.string(),
+  category: z.string().max(100, "Categoria deve ter no máximo 100 caracteres").optional(),
+});
 
 type Transaction = {
   id: string;
@@ -88,14 +97,26 @@ export default function Financial() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const data = {
-      type: formData.get("type"),
-      description: formData.get("description"),
+    const rawData = {
+      type: formData.get("type") as string,
+      description: formData.get("description") as string,
       amount: parseFloat(formData.get("amount") as string),
-      due_date: formData.get("due_date"),
-      category: formData.get("category"),
+      due_date: formData.get("due_date") as string,
+      category: formData.get("category") as string || undefined,
     };
-    createMutation.mutate(data);
+    
+    try {
+      const validatedData = transactionSchema.parse(rawData);
+      createMutation.mutate(validatedData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Erro de validação",
+          description: error.errors[0].message,
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   return (
