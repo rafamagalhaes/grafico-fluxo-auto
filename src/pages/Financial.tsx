@@ -40,7 +40,7 @@ export default function Financial() {
       const endDate = new Date(year, month, 0).toISOString().split("T")[0];
       
       const { data, error } = await supabase
-        .from("transactions")
+        .from("financial_transactions")
         .select("*")
         .gte("due_date", startDate)
         .lte("due_date", endDate)
@@ -61,7 +61,7 @@ export default function Financial() {
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       if (!userCompany?.company_id) throw new Error("Company not found");
-      const { error } = await supabase.from("transactions").insert([{ ...data, company_id: userCompany.company_id }]);
+      const { error } = await supabase.from("financial_transactions").insert([{ ...data, company_id: userCompany.company_id }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -74,7 +74,7 @@ export default function Financial() {
   const togglePaidMutation = useMutation({
     mutationFn: async ({ id, paid }: { id: string; paid: boolean }) => {
       const { error } = await supabase
-        .from("transactions")
+        .from("financial_transactions")
         .update({ paid, paid_date: paid ? new Date().toISOString() : null })
         .eq("id", id);
       if (error) throw error;

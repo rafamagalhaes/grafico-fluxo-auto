@@ -23,7 +23,7 @@ type Order = {
   delivery_date: string;
   has_advance: boolean;
   advance_value: number;
-  sale_value: number;
+  total_value: number;
   pending_value: number;
   status: string;
 };
@@ -42,7 +42,7 @@ export default function Orders() {
     queryKey: ["orders"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("orders")
+        .from("active_orders")
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -53,7 +53,7 @@ export default function Orders() {
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       if (!userCompany?.company_id) throw new Error("Company not found");
-      const { error } = await supabase.from("orders").insert([{ ...data, company_id: userCompany.company_id }]);
+      const { error } = await supabase.from("active_orders").insert([{ ...data, company_id: userCompany.company_id }]);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -70,14 +70,14 @@ export default function Orders() {
       
       // Verificar se já existe uma transação para este pedido
       const { data: existingTransaction } = await supabase
-        .from("transactions")
+        .from("financial_transactions")
         .select("id")
         .eq("order_id", data.order_id)
         .maybeSingle();
       
       // Só criar se não existir
       if (!existingTransaction) {
-        const { error } = await supabase.from("transactions").insert([{
+        const { error } = await supabase.from("financial_transactions").insert([{
           amount: data.amount,
           type: "receita",
           description: `Receita do Pedido #${data.order_id}: ${data.description}`,
@@ -94,7 +94,7 @@ export default function Orders() {
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { data, error } = await supabase.from("orders").update({ status }).eq("id", id).select("*").single();
+      const { data, error } = await supabase.from("active_orders").update({ status }).eq("id", id).select("*").single();
       if (error) throw error;
       return { order: data, status };
     },
@@ -104,7 +104,7 @@ export default function Orders() {
 
       if (result.status === "concluido") {
         createRevenueMutation.mutate({
-          amount: result.order.sale_value,
+          amount: result.order.total_value,
           description: result.order.description,
           order_id: result.order.id,
         });
@@ -114,7 +114,7 @@ export default function Orders() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const { data: order, error } = await supabase.from("orders").update(data).eq("id", id).select("*").single();
+      const { data: order, error } = await supabase.from("active_orders").update(data).eq("id", id).select("*").single();
       if (error) throw error;
       return { order, status: data.status, previousStatus: editingOrder?.status };
     },
@@ -129,7 +129,7 @@ export default function Orders() {
       // Criar receita se o status for "concluido" (seja mudança de status ou manutenção do status)
       if (result.status === "concluido") {
         createRevenueMutation.mutate({
-          amount: result.order.sale_value,
+          amount: result.order.total_value,
           description: result.order.description,
           order_id: result.order.id,
         });
@@ -144,7 +144,7 @@ export default function Orders() {
       .filter((order) => order.status === "concluido")
       .forEach((order) => {
         createRevenueMutation.mutate({
-          amount: order.sale_value,
+          amount: order.total_value,
           description: order.description,
           order_id: order.id,
         });
@@ -287,7 +287,7 @@ export default function Orders() {
                     <TableCell>{order.code}</TableCell>
                     <TableCell className="max-w-xs truncate">{order.description}</TableCell>
                     <TableCell>{new Date(order.delivery_date).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell>R$ {Number(order.sale_value).toFixed(2)}</TableCell>
+                    <TableCell>R$ {Number(order.total_value).toFixed(2)}</TableCell>
                     <TableCell>
                       {order.has_advance ? `R$ ${Number(order.advance_value).toFixed(2)}` : "-"}
                     </TableCell>
@@ -401,9 +401,9 @@ export default function Orders() {
               <Label htmlFor="edit_sale_value">Valor Total *</Label>
               <Input 
                 id="edit_sale_value" 
-                name="sale_value" 
+                name="total_value" 
                 placeholder="0,00"
-                defaultValue={editingOrder ? formatCurrency(editingOrder.sale_value) : ""}
+                defaultValue={editingOrder ? formatCurrency(editingOrder.total_value) : ""}
                 onChange={(e) => {
                   const value = e.target.value.replace(/[^\d,]/g, "");
                   e.target.value = value;

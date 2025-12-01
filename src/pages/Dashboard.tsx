@@ -10,10 +10,10 @@ export default function Dashboard() {
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
       const [clients, quotes, orders, transactions] = await Promise.all([
-        supabase.from("customers").select("*", { count: "exact", head: true }),
+        supabase.from("clients").select("*", { count: "exact", head: true }),
         supabase.from("quotes").select("*", { count: "exact", head: true }),
-        supabase.from("orders").select("*", { count: "exact", head: true }),
-        supabase.from("transactions").select("amount, type, paid"),
+        supabase.from("active_orders").select("*", { count: "exact", head: true }),
+        supabase.from("financial_transactions").select("amount, type, paid"),
       ]);
 
       const ordersReady = orders.data?.filter((o: any) => o.status === "pedido_pronto").length || 0;
@@ -50,8 +50,8 @@ export default function Dashboard() {
     queryFn: async () => {
       const { data } = await supabase
         .from("quotes")
-        .select("id, code, description, delivery_date, is_approved")
-        .eq("is_approved", false)
+        .select("id, code, description, delivery_date, approved")
+        .eq("approved", false)
         .order("delivery_date", { ascending: true });
 
       return (data || []).map((q) => ({
@@ -65,7 +65,7 @@ export default function Dashboard() {
     queryKey: ["dashboard-pending-orders"],
     queryFn: async () => {
       const { data } = await supabase
-        .from("orders")
+        .from("active_orders")
         .select("id, code, description, delivery_date, status")
         .in("status", ["em_andamento", "in_progress", "pedido_pronto", "entregue_pendente"])
         .order("delivery_date", { ascending: true });
