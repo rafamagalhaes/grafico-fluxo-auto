@@ -6,18 +6,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
 const authSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+  company_id: z.string().uuid("Empresa é obrigatória"),
 });
 
 export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+
+  // Fetch companies list
+  const { data: companies } = useQuery({
+    queryKey: ["companies"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id, name")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   useEffect(() => {
     // Check if user is already logged in
@@ -43,17 +59,18 @@ export default function Auth() {
     const formData = new FormData(e.currentTarget);
     const email = formData.get("login-email") as string;
     const password = formData.get("login-password") as string;
+    const company_id = formData.get("company_id") as string;
 
     try {
-      authSchema.parse({ email, password });
+      authSchema.parse({ email, password, company_id });
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
+      if (authError) {
+        if (authError.message.includes("Invalid login credentials")) {
           toast({
             title: "Erro ao fazer login",
             description: "Email ou senha incorretos",
@@ -62,15 +79,35 @@ export default function Auth() {
         } else {
           toast({
             title: "Erro ao fazer login",
-            description: error.message,
+            description: authError.message,
             variant: "destructive",
           });
         }
-      } else {
-        toast({
-          title: "Login realizado com sucesso",
-        });
+        return;
       }
+
+      // Validate if user is linked to selected company
+      const { data: userCompany, error: companyError } = await supabase
+        .from("user_companies")
+        .select("company_id")
+        .eq("user_id", authData.user.id)
+        .eq("company_id", company_id)
+        .single();
+
+      if (companyError || !userCompany) {
+        // Sign out the user if they're not linked to this company
+        await supabase.auth.signOut();
+        toast({
+          title: "Erro ao fazer login",
+          description: "Usuário não está vinculado a esta empresa",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Login realizado com sucesso",
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -101,6 +138,21 @@ export default function Auth() {
 
 	            <TabsContent value="login" className="pt-4">
               <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company_id">Empresa</Label>
+                  <Select name="company_id" required disabled={loading}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies?.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="login-email">Email</Label>
                   <Input
