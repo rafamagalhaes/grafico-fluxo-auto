@@ -1,9 +1,24 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Validation schemas
+const createUserSchema = z.object({
+  email: z.string().email('Invalid email format').max(255),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  role: z.enum(['admin', 'user'], { 
+    errorMap: () => ({ message: 'Role must be either admin or user' })
+  }),
+  company_id: z.string().uuid('Invalid company ID format'),
+})
+
+const deleteUserSchema = z.object({
+  userId: z.string().uuid('Invalid user ID format'),
+})
 
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -87,7 +102,14 @@ Deno.serve(async (req) => {
       }
 
       case 'create': {
-        const { email, password, role, company_id } = body;
+        // Validate input
+        const validationResult = createUserSchema.safeParse(body);
+        if (!validationResult.success) {
+          console.error('Validation error:', validationResult.error.errors);
+          throw new Error(`Invalid input: ${validationResult.error.errors.map(e => e.message).join(', ')}`);
+        }
+        
+        const { email, password, role, company_id } = validationResult.data;
 
         // Create user
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -135,7 +157,14 @@ Deno.serve(async (req) => {
       }
 
       case 'delete': {
-        const { userId } = body;
+        // Validate input
+        const validationResult = deleteUserSchema.safeParse(body);
+        if (!validationResult.success) {
+          console.error('Validation error:', validationResult.error.errors);
+          throw new Error(`Invalid input: ${validationResult.error.errors.map(e => e.message).join(', ')}`);
+        }
+        
+        const { userId } = validationResult.data;
         const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
         if (error) {
           console.error('Delete user error:', error);
