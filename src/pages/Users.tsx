@@ -43,11 +43,13 @@ export default function Users() {
     enabled: userRole === "superadmin",
   });
 
-  // Fetch users from auth.users (via admin API)
+  // Fetch users via Edge Function
   const { data: users, isLoading } = useQuery({
     queryKey: ["users"],
     queryFn: async () => {
-      const { data, error } = await supabase.auth.admin.listUsers();
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: { action: 'list' },
+      });
       if (error) throw error;
       return data.users;
     },
@@ -55,30 +57,20 @@ export default function Users() {
 
   const createUserMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; role: "admin" | "user"; company_id: string }) => {
-      // Create user
-      const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
-        email: data.email,
-        password: data.password,
-        email_confirm: true,
-      });
-      if (authError) throw authError;
-      
-      // Assign role
-      const { error: roleError } = await supabase
-        .from("user_roles")
-        .insert([{ user_id: newUser.user.id, role: data.role }]);
-      if (roleError) throw roleError;
-      
-      // Link to company
       const companyId = userRole === "superadmin" ? data.company_id : userCompany?.company_id;
-      if (companyId) {
-        const { error: companyError } = await supabase
-          .from("user_companies")
-          .insert([{ user_id: newUser.user.id, company_id: companyId }]);
-        if (companyError) throw companyError;
-      }
       
-      return newUser;
+      const { data: result, error } = await supabase.functions.invoke('manage-users', {
+        body: { 
+          action: 'create',
+          email: data.email,
+          password: data.password,
+          role: data.role,
+          company_id: companyId,
+        },
+      });
+      
+      if (error) throw error;
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -96,8 +88,14 @@ export default function Users() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
+      const { data, error } = await supabase.functions.invoke('manage-users', {
+        body: { 
+          action: 'delete',
+          userId,
+        },
+      });
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
