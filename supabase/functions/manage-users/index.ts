@@ -103,8 +103,8 @@ Deno.serve(async (req) => {
 
         console.log('Created user:', newUser.user.id);
 
-        // Assign role
-        const { error: roleError } = await supabaseClient
+        // Assign role using admin client to bypass RLS
+        const { error: roleError } = await supabaseAdmin
           .from('user_roles')
           .insert([{ user_id: newUser.user.id, role }]);
 
@@ -115,8 +115,8 @@ Deno.serve(async (req) => {
           throw roleError;
         }
 
-        // Link to company
-        const { error: companyError } = await supabaseClient
+        // Link to company using admin client to bypass RLS
+        const { error: companyError } = await supabaseAdmin
           .from('user_companies')
           .insert([{ user_id: newUser.user.id, company_id }]);
 
