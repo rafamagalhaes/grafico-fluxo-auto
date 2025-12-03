@@ -126,6 +126,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          asaas_customer_id: string | null
           created_at: string
           document: string | null
           id: string
@@ -137,6 +138,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          asaas_customer_id?: string | null
           created_at?: string
           document?: string | null
           id?: string
@@ -148,6 +150,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          asaas_customer_id?: string | null
           created_at?: string
           document?: string | null
           id?: string
@@ -372,30 +375,36 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          asaas_subscription_id: string | null
           company_id: string
           created_at: string | null
           end_date: string
           id: string
+          payment_method: string | null
           plan_id: string
           start_date: string
           status: string
           updated_at: string | null
         }
         Insert: {
+          asaas_subscription_id?: string | null
           company_id: string
           created_at?: string | null
           end_date: string
           id?: string
+          payment_method?: string | null
           plan_id: string
           start_date?: string
           status?: string
           updated_at?: string | null
         }
         Update: {
+          asaas_subscription_id?: string | null
           company_id?: string
           created_at?: string | null
           end_date?: string
           id?: string
+          payment_method?: string | null
           plan_id?: string
           start_date?: string
           status?: string
