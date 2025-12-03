@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
+import graficontrolLogo from "@/assets/graficontrol-logo.png";
 
 const authSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -126,10 +127,16 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center">Sistema de Gestão</CardTitle>
-          <CardDescription className="text-center">
-	            Faça login para acessar o sistema
+        <CardHeader className="space-y-4 pb-6">
+          <div className="flex justify-center">
+            <img 
+              src={graficontrolLogo} 
+              alt="GrafiControl" 
+              className="h-24 w-auto object-contain"
+            />
+          </div>
+          <CardDescription className="text-center text-sm">
+            Faça login para acessar o sistema
           </CardDescription>
         </CardHeader>
         <CardContent>
