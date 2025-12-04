@@ -16,6 +16,7 @@ import { z } from "zod";
 const clientSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   phone: z.string().min(1, "Telefone é obrigatório"),
+  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
   birth_date: z.string().optional(),
   client_type: z.enum(["fisica", "juridica"]),
   cnpj: z.string().optional(),
@@ -24,6 +25,7 @@ const clientSchema = z.object({
 type ClientInput = {
   name: string;
   phone: string;
+  email?: string;
   birth_date?: string;
   client_type: "fisica" | "juridica";
   cnpj?: string;
@@ -34,6 +36,7 @@ type Client = {
   code: string | null;
   name: string;
   phone: string;
+  email?: string | null;
   birth_date: string | null;
   client_type?: "fisica" | "juridica";
   cnpj?: string | null;
@@ -127,8 +130,16 @@ export default function Clients() {
       client_type: formData.get("client_type") as "fisica" | "juridica",
     };
 
-    const birthDate = formData.get("birth_date") as string;
-    if (birthDate) rawData.birth_date = birthDate;
+    const email = formData.get("email") as string;
+    if (email) rawData.email = email;
+
+    // Only include birth_date for Pessoa Física
+    if (rawData.client_type === "fisica") {
+      const birthDate = formData.get("birth_date") as string;
+      if (birthDate) rawData.birth_date = birthDate;
+    } else {
+      rawData.birth_date = null;
+    }
 
     const cnpj = formData.get("cnpj") as string;
     if (cnpj) rawData.cnpj = cnpj.replace(/\D/g, "");
@@ -213,9 +224,15 @@ export default function Clients() {
                 <Input id="phone" name="phone" required defaultValue={editingClient?.phone || ""} />
               </div>
               <div>
-                <Label htmlFor="birth_date">Data de Nascimento</Label>
-                <Input id="birth_date" name="birth_date" type="date" defaultValue={editingClient?.birth_date || ""} />
+                <Label htmlFor="email">E-mail</Label>
+                <Input id="email" name="email" type="email" defaultValue={editingClient?.email || ""} placeholder="exemplo@email.com" />
               </div>
+              {clientType === "fisica" && (
+                <div>
+                  <Label htmlFor="birth_date">Data de Nascimento</Label>
+                  <Input id="birth_date" name="birth_date" type="date" defaultValue={editingClient?.birth_date || ""} />
+                </div>
+              )}
               {editingClient && (
                 <div>
                   <Label>Código</Label>
@@ -247,6 +264,7 @@ export default function Clients() {
                   <TableHead>Nome</TableHead>
                   <TableHead>CNPJ</TableHead>
                   <TableHead>Telefone</TableHead>
+                  <TableHead>E-mail</TableHead>
                   <TableHead>Data de Nascimento</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
@@ -259,6 +277,7 @@ export default function Clients() {
                     <TableCell>{client.name}</TableCell>
                     <TableCell>{client.cnpj ? formatCNPJ(client.cnpj) : "-"}</TableCell>
                     <TableCell>{client.phone}</TableCell>
+                    <TableCell>{client.email || "-"}</TableCell>
                     <TableCell>{client.birth_date ? new Date(client.birth_date).toLocaleDateString("pt-BR") : "-"}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">

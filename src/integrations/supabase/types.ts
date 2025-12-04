@@ -85,6 +85,7 @@ export type Database = {
           code: string | null
           company_id: string | null
           created_at: string | null
+          email: string | null
           id: string
           name: string
           phone: string
@@ -97,6 +98,7 @@ export type Database = {
           code?: string | null
           company_id?: string | null
           created_at?: string | null
+          email?: string | null
           id?: string
           name: string
           phone: string
@@ -109,6 +111,7 @@ export type Database = {
           code?: string | null
           company_id?: string | null
           created_at?: string | null
+          email?: string | null
           id?: string
           name?: string
           phone?: string
