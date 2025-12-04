@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useUserCompany } from "@/hooks/use-user-company";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -25,6 +25,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { data: userRole } = useUserRole();
   const { data: subscriptionData } = useSubscription();
   const { data: userCompany } = useUserCompany();
@@ -60,10 +61,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     if (item.href === "/subscriptions" && userRole === "user") {
       return false;
     }
+    // Hide "Configurações" for regular users (only admin and superadmin)
+    if (item.href === "/settings" && userRole === "user") {
+      return false;
+    }
     return true;
   });
 
   const handleLogout = async () => {
+    // Clear all cached queries before logout to prevent data leakage between sessions
+    queryClient.clear();
+    
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast({
