@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, Package, DollarSign, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useUserRole } from "@/hooks/use-user-role";
 
 export default function Dashboard() {
+  const { data: userRole } = useUserRole();
   const { data: stats } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
@@ -82,56 +84,67 @@ export default function Dashboard() {
     },
   });
 
-  const cards = [
+  const allCards = [
     {
       title: "Total de Clientes",
       value: stats?.clientsCount || 0,
       icon: Users,
       color: "text-primary",
+      adminOnly: false,
     },
     {
       title: "Orçamentos Ativos",
       value: stats?.quotesCount || 0,
       icon: FileText,
       color: "text-primary",
+      adminOnly: false,
     },
     {
       title: "Pedidos em Andamento",
       value: stats?.ordersCount || 0,
       icon: Package,
       color: "text-primary",
+      adminOnly: false,
     },
     {
       title: "Pedidos Prontos",
       value: stats?.ordersReady || 0,
       icon: Package,
       color: "text-blue-500",
+      adminOnly: false,
     },
     {
       title: "Entregues (Pendente)",
       value: stats?.ordersDeliveredPending || 0,
       icon: Package,
       color: "text-warning",
+      adminOnly: false,
     },
     {
       title: "Receitas",
       value: `R$ ${stats?.revenue.toFixed(2) || "0.00"}`,
       icon: DollarSign,
       color: "text-accent",
+      adminOnly: true,
     },
     {
       title: "Despesas",
       value: `R$ ${stats?.expenses.toFixed(2) || "0.00"}`,
       icon: DollarSign,
       color: "text-destructive",
+      adminOnly: true,
     },
     {
       title: "Lucro",
       value: `R$ ${stats?.profit.toFixed(2) || "0.00"}`,
       icon: TrendingUp,
       color: "text-accent",
+      adminOnly: true,
     },
   ];
+
+  // Filter cards based on user role - hide financial cards from collaborators
+  const cards = allCards.filter(card => !card.adminOnly || userRole !== "user");
 
   const isUrgent = (deliveryDate: string) => {
     const today = new Date();

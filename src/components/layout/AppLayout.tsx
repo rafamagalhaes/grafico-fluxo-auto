@@ -53,16 +53,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     if (item.href === "/companies" && userRole !== "superadmin") {
       return false;
     }
-    // Hide "Financeiro" for regular users
-    if (item.href === "/financial" && userRole === "user") {
-      return false;
-    }
-    // Hide "Assinaturas" for regular users
-    if (item.href === "/subscriptions" && userRole === "user") {
-      return false;
-    }
-    // Hide "Configurações" for regular users (only admin and superadmin)
-    if (item.href === "/settings" && userRole === "user") {
+    // Hide these menus for regular users (only admin and superadmin can see)
+    const adminOnlyMenus = ["/financial", "/subscriptions", "/settings", "/users"];
+    if (adminOnlyMenus.includes(item.href) && userRole === "user") {
       return false;
     }
     return true;
