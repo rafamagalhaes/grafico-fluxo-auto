@@ -17,13 +17,14 @@ import Users from "./pages/Users";
 import Subscriptions from "./pages/Subscriptions";
 import CompanySettings from "./pages/CompanySettings";
 import Auth from "./pages/Auth";
+import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children, session }: { children: React.ReactNode; session: Session | null }) => {
   if (!session) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/landing" replace />;
   }
   return <>{children}</>;
 };
@@ -65,6 +66,7 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/landing" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
             <Route
               path="/"
