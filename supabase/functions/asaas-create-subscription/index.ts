@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.77.0'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,28 +8,39 @@ const corsHeaders = {
 
 const ASAAS_API_URL = 'https://api.asaas.com/v3'
 
-interface CreateSubscriptionRequest {
-  plan_id: string
-  payment_method: 'CREDIT_CARD' | 'PIX'
-  customer_name: string
-  customer_email: string
-  customer_cpf_cnpj: string
-  credit_card?: {
-    holder_name: string
-    number: string
-    expiry_month: string
-    expiry_year: string
-    ccv: string
+// Input validation schema
+const creditCardSchema = z.object({
+  holder_name: z.string().min(1).max(100),
+  number: z.string().regex(/^\d{13,19}$/, 'Número do cartão inválido'),
+  expiry_month: z.string().regex(/^(0[1-9]|1[0-2])$/, 'Mês de expiração inválido'),
+  expiry_year: z.string().regex(/^\d{4}$/, 'Ano de expiração inválido'),
+  ccv: z.string().regex(/^\d{3,4}$/, 'CVV inválido'),
+})
+
+const creditCardHolderInfoSchema = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email('E-mail inválido'),
+  cpf_cnpj: z.string().min(11).max(18),
+  postal_code: z.string().min(8).max(9),
+  address_number: z.string().min(1).max(10),
+  phone: z.string().min(10).max(15),
+})
+
+const subscriptionRequestSchema = z.object({
+  plan_id: z.string().uuid('ID do plano inválido'),
+  payment_method: z.enum(['CREDIT_CARD', 'PIX'], { errorMap: () => ({ message: 'Método de pagamento inválido' }) }),
+  customer_name: z.string().min(1).max(100).optional(),
+  customer_email: z.string().email('E-mail inválido').optional(),
+  customer_cpf_cnpj: z.string().min(11).max(18).optional(),
+  credit_card: creditCardSchema.optional(),
+  credit_card_holder_info: creditCardHolderInfoSchema.optional(),
+}).refine((data) => {
+  // If payment method is CREDIT_CARD, credit_card is required
+  if (data.payment_method === 'CREDIT_CARD') {
+    return !!data.credit_card
   }
-  credit_card_holder_info?: {
-    name: string
-    email: string
-    cpf_cnpj: string
-    postal_code: string
-    address_number: string
-    phone: string
-  }
-}
+  return true
+}, { message: 'Dados do cartão de crédito são obrigatórios para pagamento com cartão', path: ['credit_card'] })
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -63,7 +75,21 @@ Deno.serve(async (req) => {
     }
 
     const company = userCompany.companies as any
-    const body: CreateSubscriptionRequest = await req.json()
+    
+    // Parse and validate request body
+    const rawBody = await req.json()
+    const parseResult = subscriptionRequestSchema.safeParse(rawBody)
+    
+    if (!parseResult.success) {
+      console.error('Validation errors:', parseResult.error.errors)
+      const errorMessages = parseResult.error.errors.map(e => e.message).join(', ')
+      return new Response(JSON.stringify({ error: `Dados inválidos: ${errorMessages}` }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    
+    const body = parseResult.data
 
     // Get plan details
     const { data: plan, error: planError } = await supabase
