@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useUserCompany } from "@/hooks/use-user-company";
 import { useUserRole } from "@/hooks/use-user-role";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, Search } from "lucide-react";
 import { z } from "zod";
 
 const userSchema = z.object({
@@ -27,7 +27,8 @@ export default function Users() {
   const { data: userCompany } = useUserCompany();
   const { data: userRole } = useUserRole();
   const [open, setOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
+  const [emailFilter, setEmailFilter] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("");
 
   // Fetch companies for superadmin
   const { data: companies } = useQuery({
@@ -54,6 +55,18 @@ export default function Users() {
       return data.users;
     },
   });
+
+  // Filter users based on search criteria
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+    return users.filter((user: any) => {
+      const matchesEmail = !emailFilter || 
+        user.email?.toLowerCase().includes(emailFilter.toLowerCase());
+      const matchesCompany = !companyFilter || 
+        user.company_name?.toLowerCase().includes(companyFilter.toLowerCase());
+      return matchesEmail && matchesCompany;
+    });
+  }, [users, emailFilter, companyFilter]);
 
   const createUserMutation = useMutation({
     mutationFn: async (data: { email: string; password: string; role: "admin" | "user"; company_id: string }) => {
@@ -243,9 +256,41 @@ export default function Users() {
       <Card>
         <CardHeader>
           <CardTitle>Lista de Usuários</CardTitle>
-          <CardDescription>Todos os usuários cadastrados no sistema</CardDescription>
+          <CardDescription>
+            {userRole === "superadmin" 
+              ? "Todos os usuários cadastrados no sistema" 
+              : "Usuários da sua empresa"}
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Filters - only for superadmin */}
+          {userRole === "superadmin" && (
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por e-mail..."
+                    value={emailFilter}
+                    onChange={(e) => setEmailFilter(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por empresa..."
+                    value={companyFilter}
+                    onChange={(e) => setCompanyFilter(e.target.value)}
+                    className="pl-8"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="text-center py-8">Carregando...</div>
           ) : (
@@ -253,15 +298,29 @@ export default function Users() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Email</TableHead>
+                  {userRole === "superadmin" && <TableHead>Empresa</TableHead>}
+                  <TableHead>Permissão</TableHead>
                   <TableHead>Criado em</TableHead>
                   <TableHead>Último login</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users?.map((user) => (
+                {filteredUsers?.map((user: any) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">{user.email}</TableCell>
+                    {userRole === "superadmin" && (
+                      <TableCell>{user.company_name || "-"}</TableCell>
+                    )}
+                    <TableCell>
+                      {user.role === "superadmin" 
+                        ? "Super Admin" 
+                        : user.role === "admin" 
+                          ? "Administrador" 
+                          : user.role === "user" 
+                            ? "Colaborador" 
+                            : "-"}
+                    </TableCell>
                     <TableCell>
                       {new Date(user.created_at).toLocaleDateString("pt-BR")}
                     </TableCell>
