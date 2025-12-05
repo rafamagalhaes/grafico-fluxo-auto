@@ -23,14 +23,12 @@ export default function Auth() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
 
-  // Fetch companies list
+  // Fetch companies list using secure RPC function
   const { data: companies } = useQuery({
-    queryKey: ["companies"],
+    queryKey: ["companies-login"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("companies")
-        .select("id, name")
-        .order("name");
+        .rpc("get_companies_for_login");
       if (error) throw error;
       return data;
     },
