@@ -51,11 +51,17 @@ export default function Companies() {
   });
 
   const { data: users } = useQuery({
-    queryKey: ["users"],
+    queryKey: ["users-for-companies"],
     queryFn: async () => {
-      const { data, error } = await supabase.auth.admin.listUsers();
-      if (error) throw error;
-      return data.users;
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) return [];
+      
+      const response = await supabase.functions.invoke("manage-users", {
+        body: { action: "list" },
+      });
+      
+      if (response.error) throw response.error;
+      return response.data?.users || [];
     },
   });
 
