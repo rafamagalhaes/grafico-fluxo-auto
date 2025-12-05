@@ -94,9 +94,45 @@ Deno.serve(async (req) => {
           console.error('List users error:', error);
           throw error;
         }
-        console.log('Listed users:', data.users.length);
+
+        // Fetch user_companies and user_roles data
+        const { data: userCompanies } = await supabaseAdmin
+          .from('user_companies')
+          .select('user_id, company_id, companies(id, name)');
+
+        const { data: userRolesData } = await supabaseAdmin
+          .from('user_roles')
+          .select('user_id, role');
+
+        // Get the requester's company_id if not superadmin
+        const { data: requesterCompany } = await supabaseAdmin
+          .from('user_companies')
+          .select('company_id')
+          .eq('user_id', user.id)
+          .single();
+
+        // Map company and role info to users
+        const usersWithCompany = data.users.map(u => {
+          const companyInfo = userCompanies?.find(uc => uc.user_id === u.id);
+          const roleInfo = userRolesData?.find(ur => ur.user_id === u.id);
+          const companyData = companyInfo?.companies as unknown as { id: string; name: string } | null;
+          return {
+            ...u,
+            company_id: companyInfo?.company_id || null,
+            company_name: companyData?.name || null,
+            role: roleInfo?.role || null,
+          };
+        });
+
+        // Filter users by company if not superadmin
+        let filteredUsers = usersWithCompany;
+        if (userRole !== 'superadmin' && requesterCompany?.company_id) {
+          filteredUsers = usersWithCompany.filter(u => u.company_id === requesterCompany.company_id);
+        }
+
+        console.log('Listed users:', filteredUsers.length);
         return new Response(
-          JSON.stringify({ users: data.users }),
+          JSON.stringify({ users: filteredUsers }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
