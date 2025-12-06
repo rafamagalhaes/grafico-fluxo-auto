@@ -124,21 +124,21 @@ export default function Clients() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
-    const rawData: any = {
+    const rawData: ClientInput = {
       name: formData.get("name") as string,
       phone: formData.get("phone") as string,
-      client_type: formData.get("client_type") as "fisica" | "juridica",
+      client_type: clientType,
     };
 
     const email = formData.get("email") as string;
     if (email) rawData.email = email;
 
     // Only include birth_date for Pessoa Física
-    if (rawData.client_type === "fisica") {
+    if (clientType === "fisica") {
       const birthDate = formData.get("birth_date") as string;
       if (birthDate) rawData.birth_date = birthDate;
     } else {
-      rawData.birth_date = null;
+      rawData.birth_date = undefined;
     }
 
     const cnpj = formData.get("cnpj") as string;
@@ -152,6 +152,7 @@ export default function Clients() {
         createMutation.mutate(rawData);
       }
     } catch (error) {
+      console.error("Validation error:", error);
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
     }
   };
