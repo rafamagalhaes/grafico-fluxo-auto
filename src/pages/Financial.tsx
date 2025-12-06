@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +36,8 @@ type Transaction = {
 
 export default function Financial() {
   const [open, setOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [transactionType, setTransactionType] = useState<string>("");
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const { toast } = useToast();
@@ -80,6 +82,22 @@ export default function Financial() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const { error } = await supabase
+        .from("financial_transactions")
+        .update(data)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      setOpen(false);
+      setEditingTransaction(null);
+      toast({ title: "Transação atualizada com sucesso!" });
+    },
+  });
+
   const togglePaidMutation = useMutation({
     mutationFn: async ({ id, paid }: { id: string; paid: boolean }) => {
       const { error } = await supabase
@@ -98,7 +116,7 @@ export default function Financial() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const rawData = {
-      type: formData.get("type") as string,
+      type: transactionType,
       description: formData.get("description") as string,
       amount: parseFloat(formData.get("amount") as string),
       due_date: formData.get("due_date") as string,
@@ -107,7 +125,11 @@ export default function Financial() {
     
     try {
       const validatedData = transactionSchema.parse(rawData);
-      createMutation.mutate(validatedData);
+      if (editingTransaction) {
+        updateMutation.mutate({ id: editingTransaction.id, data: validatedData });
+      } else {
+        createMutation.mutate(validatedData);
+      }
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast({
@@ -119,6 +141,20 @@ export default function Financial() {
     }
   };
 
+  const handleEdit = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setTransactionType(transaction.type);
+    setOpen(true);
+  };
+
+  const handleDialogChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setEditingTransaction(null);
+      setTransactionType("");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -126,21 +162,26 @@ export default function Financial() {
           <h1 className="text-3xl font-bold">Controle Financeiro</h1>
           <p className="text-muted-foreground">Gerencie suas receitas e despesas</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => setTransactionType("")}>
               <Plus className="mr-2 h-4 w-4" />
               Nova Transação
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Nova Transação</DialogTitle>
+              <DialogTitle>{editingTransaction ? "Editar Transação" : "Nova Transação"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="type">Tipo *</Label>
-                <Select name="type" required>
+                <Select 
+                  name="type" 
+                  required 
+                  value={transactionType}
+                  onValueChange={setTransactionType}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
@@ -152,21 +193,45 @@ export default function Financial() {
               </div>
               <div>
                 <Label htmlFor="description">Descrição *</Label>
-                <Textarea id="description" name="description" required />
+                <Textarea 
+                  id="description" 
+                  name="description" 
+                  required 
+                  defaultValue={editingTransaction?.description || ""}
+                />
               </div>
               <div>
                 <Label htmlFor="amount">Valor *</Label>
-                <Input id="amount" name="amount" type="number" step="0.01" required />
+                <Input 
+                  id="amount" 
+                  name="amount" 
+                  type="number" 
+                  step="0.01" 
+                  required 
+                  defaultValue={editingTransaction?.amount || ""}
+                />
               </div>
               <div>
                 <Label htmlFor="due_date">Data de Vencimento *</Label>
-                <Input id="due_date" name="due_date" type="date" required />
+                <Input 
+                  id="due_date" 
+                  name="due_date" 
+                  type="date" 
+                  required 
+                  defaultValue={editingTransaction?.due_date || ""}
+                />
               </div>
               <div>
                 <Label htmlFor="category">Categoria</Label>
-                <Input id="category" name="category" />
+                <Input 
+                  id="category" 
+                  name="category" 
+                  defaultValue={editingTransaction?.category || ""}
+                />
               </div>
-              <Button type="submit" className="w-full">Criar Transação</Button>
+              <Button type="submit" className="w-full">
+                {editingTransaction ? "Salvar Alterações" : "Criar Transação"}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -275,13 +340,22 @@ export default function Financial() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="sm"
-                        variant={transaction.paid ? "outline" : "default"}
-                        onClick={() => togglePaidMutation.mutate({ id: transaction.id, paid: !transaction.paid })}
-                      >
-                        {transaction.paid ? "Marcar como Pendente" : "Marcar como Pago"}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEdit(transaction)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={transaction.paid ? "outline" : "default"}
+                          onClick={() => togglePaidMutation.mutate({ id: transaction.id, paid: !transaction.paid })}
+                        >
+                          {transaction.paid ? "Pendente" : "Pago"}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
