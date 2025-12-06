@@ -168,7 +168,7 @@ export default function Clients() {
           if (isOpen && !editingClient) {
             setClientType("fisica");
           } else if (isOpen && editingClient) {
-            setClientType(editingClient.client_type);
+            setClientType(editingClient.client_type || "fisica");
           }
         }}>
           <DialogTrigger asChild>
