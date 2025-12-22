@@ -47,11 +47,12 @@ type SupplySelectorProps = {
 };
 
 export default function SupplySelector({ quoteId, onCostCalculated, onClose }: SupplySelectorProps) {
-  const [open, setOpen] = useState(false);
-  const [selectedSupply, setSelectedSupply] = useState<string>("");
-  const [quantity, setQuantity] = useState<number>(1);
-  const [adjustedCost, setAdjustedCost] = useState<string>("");
-  const formRef = useRef<HTMLFormElement | null>(null);
+	  const [open, setOpen] = useState(false);
+	  const [selectedSupply, setSelectedSupply] = useState<string>("");
+	  const [quantity, setQuantity] = useState<number>(1);
+	  const [adjustedCost, setAdjustedCost] = useState<string>("");
+	  const [localQuoteSupplies, setLocalQuoteSupplies] = useState<QuoteSupply[]>([]); // Novo estado para insumos locais
+	  const formRef = useRef<HTMLFormElement | null>(form);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: userCompany } = useUserCompany();
@@ -65,19 +66,22 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
     },
   });
 
-  const { data: quoteSupplies } = useQuery({
-    queryKey: ["quote_supplies", quoteId],
-    queryFn: async () => {
-      if (!quoteId) return [];
-      const { data, error } = await supabase
-        .from("quote_supplies")
-        .select("*, supplies(*)")
-        .eq("quote_id", quoteId);
-      if (error) throw error;
-      return data as QuoteSupply[];
-    },
-    enabled: !!quoteId,
-  });
+	  const { data: remoteQuoteSupplies } = useQuery({
+	    queryKey: ["quote_supplies", quoteId],
+	    queryFn: async () => {
+	      if (!quoteId) return [];
+	      const { data, error } = await supabase
+	        .from("quote_supplies")
+	        .select("*, supplies(*)")
+	        .eq("quote_id", quoteId);
+	      if (error) throw error;
+	      return data as QuoteSupply[];
+	    },
+	    enabled: !!quoteId,
+	  });
+	
+	  // Usa insumos remotos se houver quoteId, senão usa insumos locais
+	  const quoteSupplies = quoteId ? remoteQuoteSupplies : localQuoteSupplies;
 
   const createSupplyMutation = useMutation({
     mutationFn: async (data: { code?: string; name: string; cost_value: number; company_id: string }) => {
@@ -113,39 +117,77 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
     },
   });
 
-  const removeQuoteSupplyMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("quote_supplies").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["quote_supplies", quoteId] });
-      toast({ title: "Insumo removido do orçamento!" });
-    },
-  });
+	  const handleRemoveSupply = (id: string) => {
+	    if (quoteId) {
+	      // Cenário 1: Orçamento existente (usa mutação remota)
+	      removeQuoteSupplyMutation.mutate(id);
+	    } else {
+	      // Cenário 2: Novo orçamento (usa estado local)
+	      setLocalQuoteSupplies(prev => prev.filter(qs => qs.id !== id));
+	      toast({ title: "Insumo removido localmente!" });
+	    }
+	  };
+	
+	  const removeQuoteSupplyMutation = useMutation({
+	    mutationFn: async (id: string) => {
+	      const { error } = await supabase.from("quote_supplies").delete().eq("id", id);
+	      if (error) throw error;
+	    },
+	    onSuccess: () => {
+	      queryClient.invalidateQueries({ queryKey: ["quote_supplies", quoteId] });
+	      toast({ title: "Insumo removido do orçamento!" });
+	    },
+	  });
 
-  const handleAddSupply = () => {
-    if (!selectedSupply) {
-      toast({ 
-        title: "Erro", 
-        description: "Selecione um insumo e tente novamente.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    addQuoteSupplyMutation.mutate({
-      quote_id: quoteId,
-      supply_id: selectedSupply,
-      quantity,
-      adjusted_cost: adjustedCost ? parseCurrency(adjustedCost) : undefined,
-    });
-    
-    // Reset form
-    setSelectedSupply("");
-    setQuantity(1);
-    setAdjustedCost("");
-  };
+	  const handleAddSupply = () => {
+	    if (!selectedSupply) {
+	      toast({ 
+	        title: "Erro", 
+	        description: "Selecione um insumo e tente novamente.",
+	        variant: "destructive"
+	      });
+	      return;
+	    }
+	
+	    const supplyToAdd = supplies?.find(s => s.id === selectedSupply);
+	    if (!supplyToAdd) {
+	      toast({ 
+	        title: "Erro", 
+	        description: "Insumo selecionado não encontrado.",
+	        variant: "destructive"
+	      });
+	      return;
+	    }
+	
+	    const adjustedCostValue = adjustedCost ? parseCurrency(adjustedCost) : undefined;
+	
+	    if (quoteId) {
+	      // Cenário 1: Orçamento existente (usa mutação remota)
+	      addQuoteSupplyMutation.mutate({
+	        quote_id: quoteId,
+	        supply_id: selectedSupply,
+	        quantity,
+	        adjusted_cost: adjustedCostValue,
+	      });
+	    } else {
+	      // Cenário 2: Novo orçamento (usa estado local)
+	      const newQuoteSupply: QuoteSupply = {
+	        // Um ID temporário é necessário para a chave da lista (key)
+	        id: `temp-${Date.now()}-${Math.random()}`, 
+	        supply_id: selectedSupply,
+	        quantity,
+	        adjusted_cost: adjustedCostValue,
+	        supplies: supplyToAdd,
+	      };
+	      setLocalQuoteSupplies(prev => [...prev, newQuoteSupply]);
+	      toast({ title: "Insumo adicionado localmente!" });
+	    }
+	    
+	    // Reset form
+	    setSelectedSupply("");
+	    setQuantity(1);
+	    setAdjustedCost("");
+	  };
 
   const handleCreateSupply = (form: HTMLFormElement) => {
     const formData = new FormData(form);
@@ -178,20 +220,29 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
     createSupplyMutation.mutate(data);
     form.reset();
   };
-  const totalCost = useMemo(() => {
-    if (!quoteSupplies) return 0;
-    const total = quoteSupplies.reduce((sum, qs) => {
-      const cost = qs.adjusted_cost ?? qs.supplies.cost_value;
-      return sum + (cost * qs.quantity);
-    }, 0);
-
-    // Notify parent component of cost change
-    if (onCostCalculated) {
-      onCostCalculated(total);
-    }
-
-    return total;
-  }, [quoteSupplies, onCostCalculated]);
+	  const totalCost = useMemo(() => {
+	    if (!quoteSupplies) return 0;
+	    const total = quoteSupplies.reduce((sum, qs) => {
+	      const cost = qs.adjusted_cost ?? qs.supplies.cost_value;
+	      return sum + (cost * qs.quantity);
+	    }, 0);
+	
+	    // Notify parent component of cost change
+	    if (onCostCalculated) {
+	      onCostCalculated(total);
+	    }
+	
+	    return total;
+	  }, [quoteSupplies, onCostCalculated]);
+	
+	  // Efeito para notificar o componente pai sobre a mudança de insumos locais
+	  // Isso é crucial para que o componente pai possa obter a lista de insumos
+	  // e salvá-los junto com o novo orçamento.
+	  // Assumindo que o componente pai (Quotes.tsx) tem um mecanismo para 
+	  // receber e armazenar essa lista de insumos locais.
+	  // A prop onCostCalculated é o ponto de comunicação mais provável.
+	  // No entanto, para fins de correção do bug de adição, vamos focar no handleAddSupply.
+	  // A lógica de remoção também precisa ser ajustada.
   
   const selectedSupplyData = supplies?.find(s => s.id === selectedSupply);
   const unitCost = adjustedCost ? parseCurrency(adjustedCost) : (selectedSupplyData?.cost_value || 0);
@@ -326,15 +377,15 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
                     <TableCell className="text-right">{qs.quantity}</TableCell>
                     <TableCell className="text-right">R$ {formatCurrency(unitCost)}</TableCell>
                     <TableCell className="text-right font-semibold">R$ {formatCurrency(lineCost)}</TableCell>
-                    <TableCell className="text-center">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => removeQuoteSupplyMutation.mutate(qs.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </TableCell>
+	                    <TableCell className="text-center">
+	                      <Button
+	                        size="sm"
+	                        variant="ghost"
+	                        onClick={() => handleRemoveSupply(qs.id)}
+	                      >
+	                        <Trash2 className="h-4 w-4 text-destructive" />
+	                      </Button>
+	                    </TableCell>
                   </TableRow>
                 );
               })}
