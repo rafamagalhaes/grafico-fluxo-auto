@@ -47,8 +47,7 @@ type Quote = {
 };
 
 export default function Quotes() {
-	  const [open, setOpen] = useState(false);
-	  const [isSupplyModalOpen, setIsSupplyModalOpen] = useState(false); // Novo estado para controlar o modal de insumos
+  const [open, setOpen] = useState(false);
   const [costValue, setCostValue] = useState<number>(0);
   const [saleValue, setSaleValue] = useState<number>(0);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
@@ -202,11 +201,10 @@ export default function Quotes() {
       if (error) throw error;
       return data.id;
     },
-	    onSuccess: (newId) => {
-	      setTempQuoteId(newId); // Armazena o ID temporário
-	      setIsCreatingTempQuote(false);
-	      setIsSupplyModalOpen(true); // Abre o modal de insumos APÓS gerar o ID
-	    },
+    onSuccess: (newId) => {
+      setTempQuoteId(newId); // Armazena o ID temporário
+      setIsCreatingTempQuote(false);
+    },
     onError: () => {
       setIsCreatingTempQuote(false);
       toast({ title: "Erro ao criar orçamento temporário", variant: "destructive" });
@@ -460,43 +458,41 @@ export default function Quotes() {
                       type="number" 
                       step="0.01" 
                       value={costValue.toFixed(2)} 
-    	                <div className="flex gap-2 items-center">
-	                    <Dialog open={isSupplyModalOpen} onOpenChange={setIsSupplyModalOpen}>
-	                        <DialogTrigger asChild>
-	                            <Button
-	                                type="button"
-	                                variant="outline"
-	                                className="w-full"
-	                                onClick={() => {
-	                                    // Se estiver editando um orçamento existente ou já tiver um temporário
-	                                    if (isEditing || tempQuoteId) {
-	                                        setIsSupplyModalOpen(true);
-	                                    } else {
-	                                        // Se for um novo orçamento, cria o temporário primeiro
-	                                        setIsCreatingTempQuote(true);
-	                                        createTempQuoteMutation.mutate();
-	                                    }
-	                                }}
-	                                disabled={isCreatingTempQuote}
-	                            >
-	                                <Plus className="mr-2 h-4 w-4" />
-	                                Selecionar Insumos
-	                            </Button>
-	                        </DialogTrigger>
-	                        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-	                            <DialogHeader>
-	                                <DialogTitle>Gerenciar Custos e Insumos</DialogTitle>
-	                            </DialogHeader>
-	                            <SupplySelector 
-	                                quoteId={isEditing?.id || tempQuoteId || undefined}
-	                                onCostCalculated={(totalCost) => {
-	                                    setCostValue(totalCost);
-	                                }}
-	                                onClose={() => setIsSupplyModalOpen(false)}
-	                            />
-	                        </DialogContent>
-	                    </Dialog>
-	                </div>                <p className="text-xs text-muted-foreground mt-1">Custo total calculado com base nos insumos selecionados.</p>
+                      readOnly 
+                    />
+                    <Dialog open={!!editingQuoteId} onOpenChange={(open) => !open && setEditingQuoteId(null)}>
+                        <DialogTrigger asChild>
+                                <Button 
+                                type="button" 
+                                variant="outline" 
+                                disabled={isCreatingTempQuote}
+                                onClick={() => {
+                                    if (isEditing) {
+                                        setEditingQuoteId(isEditing.id);
+                                    } else {
+                                        setEditingQuoteId("new");
+                                        setCostValue(0); // Resetar o valor de custo ao abrir novo
+                                    }
+                                }} // Usar um ID temporário para novo orçamento
+                            >
+                                Selecionar Insumos
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle>Gerenciar Custos e Insumos</DialogTitle>
+                            </DialogHeader>
+                            <SupplySelector 
+                                quoteId={editingQuoteId === "new" ? undefined : editingQuoteId}
+                                onCostCalculated={(totalCost) => {
+                                    setCostValue(totalCost);
+                                }}
+                                onClose={() => setEditingQuoteId(null)}
+                            />
+                        </DialogContent>
+                    </Dialog>
+                </div>
+                  <p className="text-xs text-muted-foreground mt-1">Custo total calculado com base nos insumos selecionados.</p>
                 </div>
                 <div>
                   <Label htmlFor="sale_value">Valor Total</Label>
