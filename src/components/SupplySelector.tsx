@@ -143,6 +143,15 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
 	      return;
 	    }
 	
+	    if (!quoteId) {
+	      toast({ 
+	        title: "Erro", 
+	        description: "ID do orçamento não encontrado. Certifique-se de que o orçamento foi salvo.",
+	        variant: "destructive"
+	      });
+	      return;
+	    }
+	
 	    addQuoteSupplyMutation.mutate({
 	      quote_id: quoteId,
       supply_id: selectedSupply,
