@@ -49,7 +49,7 @@ type SupplySelectorProps = {
 export default function SupplySelector({ quoteId, onCostCalculated, onClose }: SupplySelectorProps) {
   const [open, setOpen] = useState(false);
   const [selectedSupply, setSelectedSupply] = useState<string>("");
-  const [quantity, setQuantity] = useState<number>(1);
+  const [quantity, setQuantity] = useState<number>(0);
   const [adjustedCost, setAdjustedCost] = useState<string>("");
   const formRef = useRef<HTMLFormElement | null>(null);
   const { toast } = useToast();
@@ -161,7 +161,7 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
     
     // Reset form
     setSelectedSupply("");
-    setQuantity(1);
+    setQuantity(0);
     setAdjustedCost("");
   };
 
@@ -243,15 +243,15 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
           
           <div>
             <Label htmlFor="quantity">Quantidade *</Label>
-            <Input
-              id="quantity"
-              type="number"
-              step="1"
-              min="1"
-              value={quantity}
-              onChange={(e) => setQuantity(parseFloat(e.target.value) || 1)}
-              disabled={!selectedSupply}
-            />
+              <Input
+                id="quantity"
+                type="number"
+                step="1"
+                min="0"
+                value={quantity}
+                onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+                disabled={!selectedSupply}
+              />
           </div>
           
           <div>
