@@ -9,11 +9,21 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Trash2, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { formatCurrency, parseCurrency } from "@/lib/currency";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUserCompany } from "@/hooks/use-user-company";
 
+// Funções auxiliares para máscara de moeda
+const formatCurrency = (value: number): string => {
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
 
+const parseCurrency = (value: string): number => {
+  const cleaned = value.replace(/[^\d,]/g, "").replace(",", ".");
+  return parseFloat(cleaned) || 0;
+};
 
 type Supply = {
   id: string;
@@ -221,13 +231,13 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
               <SelectTrigger id="supply_select">
                 <SelectValue placeholder="Selecione um insumo" />
               </SelectTrigger>
-	              <SelectContent>
-	                {supplies?.map((supply) => (
-	                  <SelectItem key={supply.id} value={supply.id}>
-	                    {supply.name} - R$ {formatCurrency(supply.cost_value)}
-	                  </SelectItem>
-	                ))}
-	              </SelectContent>
+              <SelectContent>
+                {supplies?.map((supply) => (
+                  <SelectItem key={supply.id} value={supply.id}>
+                    {supply.name} - R$ {formatCurrency(supply.cost_value)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
           
