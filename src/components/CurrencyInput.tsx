@@ -7,7 +7,7 @@ interface CurrencyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEle
   onChange: (value: number) => void;
 }
 
-export const CurrencyInput: React.FC<CurrencyInputProps> = ({ value, export const CurrencyInput: React.FC<CurrencyInputProps> = ({ value, onChange, ...props }) => {
+export const CurrencyInput: React.FC<CurrencyInputProps> = ({ value, onChange, ...props }) => {
   const [displayValue, setDisplayValue] = useState<string>(formatCurrency(value));
   const [cursor, setCursor] = useState<number | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
