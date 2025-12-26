@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { CurrencyInput } from "@/components/CurrencyInput";
+import { parseCurrency, formatCurrency } from "@/lib/currency";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,7 +24,7 @@ type ProductSelectorProps = {
 
 export default function ProductSelector({ quoteId, onTotalCalculated }: ProductSelectorProps) {
   const [productName, setProductName] = useState("");
-  const [saleValue, setSaleValue] = useState("");
+  const [saleValue, setSaleValue] = useState(0);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -83,7 +85,7 @@ export default function ProductSelector({ quoteId, onTotalCalculated }: ProductS
     }
     addProductMutation.mutate({
       product_name: productName,
-      sale_value: parseFloat(saleValue),
+      sale_value: saleValue,
     });
   };
 
@@ -120,13 +122,11 @@ export default function ProductSelector({ quoteId, onTotalCalculated }: ProductS
               </div>
               <div>
                 <Label htmlFor="sale_value">Valor de Venda *</Label>
-                <Input
+                <CurrencyInput
                   id="sale_value"
-                  type="number"
-                  step="0.01"
                   value={saleValue}
-                  onChange={(e) => setSaleValue(e.target.value)}
-                  placeholder="0.00"
+                  onChange={setSaleValue}
+                  placeholder="0,00"
                 />
               </div>
               <Button onClick={handleAddProduct} className="w-full">
@@ -151,7 +151,7 @@ export default function ProductSelector({ quoteId, onTotalCalculated }: ProductS
               {quoteProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>{product.product_name}</TableCell>
-                  <TableCell>R$ {Number(product.sale_value).toFixed(2)}</TableCell>
+                  <TableCell>R$ {formatCurrency(product.sale_value)}</TableCell>
                   <TableCell>
                     <Button
                       size="sm"
@@ -168,7 +168,7 @@ export default function ProductSelector({ quoteId, onTotalCalculated }: ProductS
           <div className="flex justify-end items-center gap-2 pt-4 border-t">
             <span className="font-semibold">Valor Total:</span>
             <span className="text-lg text-primary font-bold">
-              R$ {totalValue.toFixed(2)}
+              R$ {formatCurrency(totalValue)}
             </span>
           </div>
         </>
