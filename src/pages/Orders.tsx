@@ -51,6 +51,8 @@ export default function Orders() {
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [hasAdvance, setHasAdvance] = useState(false);
+  const [newOrderTotalValue, setNewOrderTotalValue] = useState(0);
+  const [newOrderAdvanceValue, setNewOrderAdvanceValue] = useState(0);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [editStatus, setEditStatus] = useState<string>("");
   const { toast } = useToast();
@@ -75,12 +77,14 @@ export default function Orders() {
       const { error } = await supabase.from("active_orders").insert([{ ...data, company_id: userCompany.company_id }]);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      setOpen(false);
-      setHasAdvance(false);
-      toast({ title: "Pedido criado com sucesso!" });
-    },
+	    onSuccess: () => {
+	      queryClient.invalidateQueries({ queryKey: ["orders"] });
+	      setOpen(false);
+	      setHasAdvance(false);
+	      setNewOrderTotalValue(0);
+	      setNewOrderAdvanceValue(0);
+	      toast({ title: "Pedido criado com sucesso!" });
+	    },
   });
 
   const createRevenueMutation = useMutation({
@@ -176,9 +180,9 @@ export default function Orders() {
 	    const rawData = {
 	      description: formData.get("description") as string,
 	      delivery_date: formData.get("delivery_date") as string,
-	      total_value: parseCurrency(formData.get("sale_value") as string),
+	      total_value: newOrderTotalValue,
 	      has_advance: hasAdvance,
-	      advance_value: hasAdvance ? parseCurrency(formData.get("advance_value") as string) : 0,
+	      advance_value: hasAdvance ? newOrderAdvanceValue : 0,
 	      quote_id: null,
 	    };
     
@@ -287,8 +291,8 @@ export default function Orders() {
 	                  id="sale_value" 
 	                  name="sale_value" 
 	                  required 
-	                  value={0}
-	                  onChange={() => {}}
+	                  value={newOrderTotalValue}
+	                  onChange={setNewOrderTotalValue}
 	                />
               </div>
               <div className="flex items-center space-x-2">
@@ -302,8 +306,8 @@ export default function Orders() {
 	                    id="advance_value" 
 	                    name="advance_value" 
 	                    required 
-	                    value={0}
-	                    onChange={() => {}}
+	                    value={newOrderAdvanceValue}
+	                    onChange={setNewOrderAdvanceValue}
 	                  />
                 </div>
               )}

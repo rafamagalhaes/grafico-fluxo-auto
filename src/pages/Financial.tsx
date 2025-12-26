@@ -39,6 +39,7 @@ type Transaction = {
 export default function Financial() {
   const [open, setOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [newTransactionValue, setNewTransactionValue] = useState(0);
   const [transactionType, setTransactionType] = useState<string>("");
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -92,12 +93,13 @@ export default function Financial() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      setOpen(false);
-      setEditingTransaction(null);
-      toast({ title: "Transação atualizada com sucesso!" });
-    },
+	    onSuccess: () => {
+	      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+	      setOpen(false);
+	      setEditingTransaction(null);
+	      setNewTransactionValue(0);
+	      toast({ title: "Transação salva com sucesso!" });
+	    },
   });
 
   const togglePaidMutation = useMutation({
@@ -120,7 +122,7 @@ export default function Financial() {
     const rawData = {
       type: transactionType,
       description: formData.get("description") as string,
-	      amount: parseCurrency(formData.get("amount") as string),
+	      amount: editingTransaction ? parseCurrency(formData.get("amount") as string) : newTransactionValue,
       due_date: formData.get("due_date") as string,
       category: formData.get("category") as string || undefined,
     };
@@ -208,8 +210,8 @@ export default function Financial() {
 	                  id="amount" 
 	                  name="amount" 
 	                  required 
-	                  value={editingTransaction?.amount || 0}
-	                  onChange={() => {}}
+	                  value={editingTransaction?.amount || newTransactionValue}
+	                  onChange={setNewTransactionValue}
 	                />
               </div>
               <div>
