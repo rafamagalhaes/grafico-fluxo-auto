@@ -278,7 +278,7 @@ export default function SupplySelector({ quoteId, onCostCalculated, onClose }: S
             <span className="text-muted-foreground">Valor Total da Linha: </span>
             <span className="font-semibold text-lg">R$ {formatCurrency(lineTotal)}</span>
           </div>
-          <Button type="button" onClick={handleAddSupply} disabled={!selectedSupply}>
+	          <Button type="button" onClick={handleAddSupply} disabled={!selectedSupply || !quoteId}>
             <Plus className="mr-2 h-4 w-4" />
             Adicionar Insumo
           </Button>
