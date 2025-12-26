@@ -13,6 +13,8 @@ import { Plus, CheckCircle, ArrowRight, Edit, FileText } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/currency";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -48,8 +50,8 @@ type Quote = {
 
 export default function Quotes() {
   const [open, setOpen] = useState(false);
-  const [costValue, setCostValue] = useState<number>(0);
-  const [saleValue, setSaleValue] = useState<number>(0);
+	  const [costValue, setCostValue] = useState<number>(0);
+	  const [saleValue, setSaleValue] = useState<number>(0);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<Quote | null>(null);
   const [isCreatingTempQuote, setIsCreatingTempQuote] = useState(false);
@@ -496,14 +498,13 @@ export default function Quotes() {
                 </div>
                 <div>
                   <Label htmlFor="sale_value">Valor Total</Label>
-                  <Input 
-                    id="sale_value" 
-                    name="sale_value" 
-                    type="number" 
-                    step="0.01" 
-                    value={saleValue.toFixed(2)} 
-                    readOnly 
-                  />
+	              <CurrencyInput 
+	                id="sale_value" 
+	                name="sale_value" 
+	                value={saleValue} 
+	                onChange={() => {}} // ReadOnly, não precisa de onChange
+	                readOnly 
+	              />
                   <p className="text-xs text-muted-foreground mt-1">Valor total calculado com base nos produtos incluídos.</p>
                 </div>
               </div>
@@ -542,9 +543,9 @@ export default function Quotes() {
                     <TableCell>{quote.clients.name}</TableCell>
                     <TableCell className="max-w-xs truncate">{quote.description}</TableCell>
                     <TableCell>{new Date(quote.delivery_date).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell>R$ {Number(quote.cost_value).toFixed(2)}</TableCell>
-                    <TableCell>R$ {Number(quote.sale_value).toFixed(2)}</TableCell>
-                    <TableCell className="text-accent font-semibold">R$ {Number(quote.profit_value).toFixed(2)}</TableCell>
+	                    <TableCell>R$ {formatCurrency(quote.cost_value)}</TableCell>
+	                    <TableCell>R$ {formatCurrency(quote.sale_value)}</TableCell>
+	                    <TableCell className="text-accent font-semibold">R$ {formatCurrency(quote.profit_value)}</TableCell>
                     <TableCell>
                       {quote.approved ? (
                         <Badge className="bg-accent">Aprovado</Badge>
@@ -643,25 +644,21 @@ export default function Quotes() {
                 <Input id="delivery_date" name="delivery_date" type="date" defaultValue={convertingQuote.delivery_date} readOnly />
               </div>
               <div>
-                <Label htmlFor="sale_value">Valor Total do Pedido</Label>
-                <Input 
-                  id="sale_value" 
-                  name="sale_value" 
-                  type="number" 
-                  step="0.01" 
-                  defaultValue={convertingQuote.sale_value} 
-                  required 
-                />
+	                <Label htmlFor="sale_value">Valor Total do Pedido</Label>
+	                <CurrencyInput 
+	                  id="sale_value" 
+	                  name="sale_value" 
+	                  defaultValue={convertingQuote.sale_value} 
+	                  required 
+	                />
               </div>
               <div>
-                <Label htmlFor="advance_value">Valor do Adiantamento</Label>
-                <Input 
-                  id="advance_value" 
-                  name="advance_value" 
-                  type="number" 
-                  step="0.01" 
-                  defaultValue={0} 
-                />
+	                <Label htmlFor="advance_value">Valor do Adiantamento</Label>
+	                <CurrencyInput 
+	                  id="advance_value" 
+	                  name="advance_value" 
+	                  defaultValue={0} 
+	                />
               </div>
               <Button type="submit" className="w-full" disabled={convertToOrderMutation.isPending}>
                 Criar Pedido

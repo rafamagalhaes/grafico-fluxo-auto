@@ -11,6 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Plus, TrendingUp, TrendingDown, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency, parseCurrency } from "@/lib/currency";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
 import { z } from "zod";
@@ -118,7 +120,7 @@ export default function Financial() {
     const rawData = {
       type: transactionType,
       description: formData.get("description") as string,
-      amount: parseFloat(formData.get("amount") as string),
+	      amount: parseCurrency(formData.get("amount") as string),
       due_date: formData.get("due_date") as string,
       category: formData.get("category") as string || undefined,
     };
@@ -202,14 +204,13 @@ export default function Financial() {
               </div>
               <div>
                 <Label htmlFor="amount">Valor *</Label>
-                <Input 
-                  id="amount" 
-                  name="amount" 
-                  type="number" 
-                  step="0.01" 
-                  required 
-                  defaultValue={editingTransaction?.amount || ""}
-                />
+	                <CurrencyInput 
+	                  id="amount" 
+	                  name="amount" 
+	                  required 
+	                  value={editingTransaction?.amount || 0}
+	                  onChange={() => {}}
+	                />
               </div>
               <div>
                 <Label htmlFor="due_date">Data de Vencimento *</Label>
@@ -266,7 +267,7 @@ export default function Financial() {
             <TrendingUp className="h-5 w-5 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-accent">R$ {summary.revenue.toFixed(2)}</div>
+	            <div className="text-2xl font-bold text-accent">R$ {formatCurrency(summary.revenue)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -274,9 +275,7 @@ export default function Financial() {
             <CardTitle className="text-sm font-medium">Despesas Pagas</CardTitle>
             <TrendingDown className="h-5 w-5 text-destructive" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-destructive">R$ {summary.expenses.toFixed(2)}</div>
-          </CardContent>
+          <CardContent>	            <div className="text-2xl font-bold text-destructive">R$ {formatCurrency(summary.pendingExpenses)}</div>          </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -284,7 +283,7 @@ export default function Financial() {
             <TrendingUp className="h-5 w-5 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">R$ {summary.pendingRevenue.toFixed(2)}</div>
+	            <div className="text-2xl font-bold text-warning">R$ {formatCurrency(summary.pendingRevenue)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -293,9 +292,9 @@ export default function Financial() {
             <TrendingUp className="h-5 w-5 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-primary">
-              R$ {(summary.revenue - summary.expenses).toFixed(2)}
-            </div>
+	            <div className="text-2xl font-bold text-primary">
+	              R$ {formatCurrency(summary.revenue - summary.expenses)}
+	            </div>
           </CardContent>
         </Card>
       </div>
@@ -329,7 +328,7 @@ export default function Financial() {
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-xs truncate">{transaction.description}</TableCell>
-                    <TableCell>R$ {Number(transaction.amount).toFixed(2)}</TableCell>
+	                    <TableCell>R$ {formatCurrency(transaction.amount)}</TableCell>
                     <TableCell>{new Date(transaction.due_date).toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell>{transaction.category || "-"}</TableCell>
                     <TableCell>

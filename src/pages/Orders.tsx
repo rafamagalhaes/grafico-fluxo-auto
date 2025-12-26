@@ -289,17 +289,29 @@ export default function Orders() {
                 <Input id="delivery_date" name="delivery_date" type="date" required />
               </div>
               <div>
-                <Label htmlFor="sale_value">Valor Total *</Label>
-                <Input id="sale_value" name="sale_value" type="number" step="0.01" required />
-              </div>
+	                <Label htmlFor="sale_value">Valor Total *</Label>
+	                <CurrencyInput 
+	                  id="sale_value" 
+	                  name="sale_value" 
+	                  required 
+	                  value={0}
+	                  onChange={() => {}}
+	                />
+	              </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="has_advance" checked={hasAdvance} onCheckedChange={(checked) => setHasAdvance(checked === true)} />
                 <Label htmlFor="has_advance">Possui adiantamento?</Label>
               </div>
               {hasAdvance && (
                 <div>
-                  <Label htmlFor="advance_value">Valor do Adiantamento *</Label>
-                  <Input id="advance_value" name="advance_value" type="number" step="0.01" required />
+	                  <Label htmlFor="advance_value">Valor do Adiantamento *</Label>
+	                  <CurrencyInput 
+	                    id="advance_value" 
+	                    name="advance_value" 
+	                    required 
+	                    value={0}
+	                    onChange={() => {}}
+	                  />
                 </div>
               )}
               <Button type="submit" className="w-full">Criar Pedido</Button>
