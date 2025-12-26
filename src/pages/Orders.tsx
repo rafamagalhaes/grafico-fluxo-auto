@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Pencil, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency, parseCurrency } from "@/lib/currency";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { useUserCompany } from "@/hooks/use-user-company";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -171,14 +173,14 @@ export default function Orders() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const rawData = {
-      description: formData.get("description") as string,
-      delivery_date: formData.get("delivery_date") as string,
-      total_value: parseFloat(formData.get("sale_value") as string),
-      has_advance: hasAdvance,
-      advance_value: hasAdvance ? parseFloat(formData.get("advance_value") as string) : 0,
-      quote_id: null,
-    };
+	    const rawData = {
+	      description: formData.get("description") as string,
+	      delivery_date: formData.get("delivery_date") as string,
+	      total_value: parseCurrency(formData.get("sale_value") as string),
+	      has_advance: hasAdvance,
+	      advance_value: hasAdvance ? parseCurrency(formData.get("advance_value") as string) : 0,
+	      quote_id: null,
+	    };
     
     try {
       const validatedData = orderSchema.parse(rawData);
@@ -201,14 +203,14 @@ export default function Orders() {
     const saleValueStr = formData.get("sale_value") as string;
     const advanceValueStr = formData.get("advance_value") as string;
     
-    const rawData = {
-      description: formData.get("description") as string,
-      delivery_date: formData.get("delivery_date") as string,
-      total_value: parseCurrency(saleValueStr),
-      has_advance: hasAdvance,
-      advance_value: hasAdvance ? parseCurrency(advanceValueStr) : 0,
-      quote_id: null,
-    };
+	    const rawData = {
+	      description: formData.get("description") as string,
+	      delivery_date: formData.get("delivery_date") as string,
+	      total_value: parseCurrency(saleValueStr),
+	      has_advance: hasAdvance,
+	      advance_value: hasAdvance ? parseCurrency(advanceValueStr) : 0,
+	      quote_id: null,
+	    };
     
     try {
       const validatedData = orderSchema.parse(rawData);
@@ -237,16 +239,7 @@ export default function Orders() {
     setEditOpen(true);
   };
 
-  const formatCurrency = (value: number): string => {
-    return value.toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
 
-  const parseCurrency = (value: string): number => {
-    return parseFloat(value.replace(/\./g, "").replace(",", ".")) || 0;
-  };
 
   const getStatusBadge = (status: string) => {
     const variants = {
@@ -290,7 +283,13 @@ export default function Orders() {
               </div>
               <div>
                 <Label htmlFor="sale_value">Valor Total *</Label>
-                <Input id="sale_value" name="sale_value" type="number" step="0.01" required />
+	                <CurrencyInput 
+	                  id="sale_value" 
+	                  name="sale_value" 
+	                  required 
+	                  value={0}
+	                  onChange={() => {}}
+	                />
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox id="has_advance" checked={hasAdvance} onCheckedChange={(checked) => setHasAdvance(checked === true)} />
@@ -299,7 +298,13 @@ export default function Orders() {
               {hasAdvance && (
                 <div>
                   <Label htmlFor="advance_value">Valor do Adiantamento *</Label>
-                  <Input id="advance_value" name="advance_value" type="number" step="0.01" required />
+	                  <CurrencyInput 
+	                    id="advance_value" 
+	                    name="advance_value" 
+	                    required 
+	                    value={0}
+	                    onChange={() => {}}
+	                  />
                 </div>
               )}
               <Button type="submit" className="w-full">Criar Pedido</Button>
@@ -335,13 +340,13 @@ export default function Orders() {
                     <TableCell>{order.code}</TableCell>
                     <TableCell className="max-w-xs truncate">{order.description}</TableCell>
                     <TableCell>{new Date(order.delivery_date).toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell>R$ {Number(order.total_value).toFixed(2)}</TableCell>
+	                    <TableCell>R$ {formatCurrency(order.total_value)}</TableCell>
                     <TableCell>
-                      {order.has_advance ? `R$ ${Number(order.advance_value).toFixed(2)}` : "-"}
+	                      {order.has_advance ? `R$ ${formatCurrency(order.advance_value)}` : "-"}
                     </TableCell>
-                    <TableCell className="font-semibold text-warning">
-                      R$ {Number(order.pending_value).toFixed(2)}
-                    </TableCell>
+	                    <TableCell className="font-semibold text-warning">
+	                      R$ {formatCurrency(order.pending_value)}
+	                    </TableCell>
                     <TableCell>{getStatusBadge(order.status)}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
@@ -446,18 +451,14 @@ export default function Orders() {
               />
             </div>
             <div>
-              <Label htmlFor="edit_sale_value">Valor Total *</Label>
-              <Input 
-                id="edit_sale_value" 
-                name="total_value" 
-                placeholder="0,00"
-                defaultValue={editingOrder ? formatCurrency(editingOrder.total_value) : ""}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/[^\d,]/g, "");
-                  e.target.value = value;
-                }}
-                required 
-              />
+	              <Label htmlFor="edit_sale_value">Valor Total *</Label>
+	              <CurrencyInput 
+	                id="edit_sale_value" 
+	                name="total_value" 
+	                value={editingOrder?.total_value || 0}
+	                onChange={() => {}}
+	                required 
+	              />
             </div>
             <div>
               <Label htmlFor="edit_status">Status do Pedido *</Label>
@@ -484,18 +485,14 @@ export default function Orders() {
             </div>
             {hasAdvance && (
               <div>
-                <Label htmlFor="edit_advance_value">Valor do Adiantamento *</Label>
-                <Input 
-                  id="edit_advance_value" 
-                  name="advance_value" 
-                  placeholder="0,00"
-                  defaultValue={editingOrder ? formatCurrency(editingOrder.advance_value || 0) : ""}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^\d,]/g, "");
-                    e.target.value = value;
-                  }}
-                  required 
-                />
+	                <Label htmlFor="edit_advance_value">Valor do Adiantamento *</Label>
+	                <CurrencyInput 
+	                  id="edit_advance_value" 
+	                  name="advance_value" 
+	                  value={editingOrder?.advance_value || 0}
+	                  onChange={() => {}}
+	                  required 
+	                />
               </div>
             )}
             <Button type="submit" className="w-full">Salvar Alterações</Button>
