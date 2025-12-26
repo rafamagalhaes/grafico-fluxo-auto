@@ -483,7 +483,7 @@ export default function Quotes() {
                                 <DialogTitle>Gerenciar Custos e Insumos</DialogTitle>
                             </DialogHeader>
                             <SupplySelector 
-                                quoteId={editingQuoteId === "new" ? undefined : editingQuoteId}
+	                                quoteId={isEditing?.id || tempQuoteId || undefined}
                                 onCostCalculated={(totalCost) => {
                                     setCostValue(totalCost);
                                 }}
