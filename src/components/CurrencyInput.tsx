@@ -7,20 +7,31 @@ interface CurrencyInputProps extends Omit<React.InputHTMLAttributes<HTMLInputEle
   onChange: (value: number) => void;
 }
 
-export const CurrencyInput: React.FC<CurrencyInputProps> = ({ value, onChange, ...props }) => {
+export const CurrencyInput: React.FC<CurrencyInputProps> = ({ value, export const CurrencyInput: React.FC<CurrencyInputProps> = ({ value, onChange, ...props }) => {
   const [displayValue, setDisplayValue] = useState<string>(formatCurrency(value));
+  const [cursor, setCursor] = useState<number | null>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
 
-  // Atualiza o valor de exibição quando o valor numérico muda externamente
+  // 1. Atualiza o valor de exibição quando o valor numérico muda externamente
   useEffect(() => {
-    // Evita atualizar o displayValue enquanto o usuário está digitando
-    if (document.activeElement !== document.getElementById(props.id || '')) {
+    if (inputRef.current && document.activeElement !== inputRef.current) {
       setDisplayValue(formatCurrency(value));
     }
-  }, [value, props.id]);
+  }, [value]);
+
+  // 2. Restaura a posição do cursor após a renderização
+  useEffect(() => {
+    if (inputRef.current && cursor !== null) {
+      inputRef.current.selectionStart = cursor;
+      inputRef.current.selectionEnd = cursor;
+    }
+  }, [cursor, displayValue]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value;
-    
+    const input = e.target;
+    const rawValue = input.value;
+    const oldCursor = input.selectionStart;
+
     // Remove tudo que não for dígito ou vírgula
     let cleanedValue = rawValue.replace(/[^\d,]/g, '');
 
@@ -35,7 +46,22 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({ value, onChange, .
       cleanedValue = parts[0] + ',' + parts[1].substring(0, 2);
     }
 
+    // Calcula a nova posição do cursor
+    let newCursor = oldCursor;
+    // Se o novo valor for menor que o antigo, o cursor deve ser ajustado
+    if (cleanedValue.length < rawValue.length) {
+      newCursor = Math.max(0, oldCursor - (rawValue.length - cleanedValue.length));
+    } else if (cleanedValue.length > rawValue.length) {
+      newCursor = oldCursor + (cleanedValue.length - rawValue.length);
+    }
+    
+    // Se o cursor estava após a vírgula e a vírgula foi removida, ajusta
+    if (oldCursor && rawValue[oldCursor - 1] === ',' && cleanedValue.indexOf(',') === -1) {
+      newCursor = oldCursor - 1;
+    }
+
     setDisplayValue(cleanedValue);
+    setCursor(newCursor);
 
     // Converte para número e notifica o componente pai
     const numericValue = parseCurrency(cleanedValue);
@@ -45,17 +71,21 @@ export const CurrencyInput: React.FC<CurrencyInputProps> = ({ value, onChange, .
   const handleBlur = useCallback(() => {
     // Formata o valor para o padrão X.XXX,XX ao perder o foco
     setDisplayValue(formatCurrency(value));
+    setCursor(null); // Limpa o cursor
   }, [value]);
 
   const handleFocus = useCallback(() => {
     // Remove a formatação ao ganhar foco para facilitar a edição
     const rawValue = String(value).replace('.', ',');
     setDisplayValue(rawValue);
+    // Coloca o cursor no final do valor
+    setCursor(rawValue.length);
   }, [value]);
 
   return (
     <Input
       {...props}
+      ref={inputRef}
       type="text"
       value={displayValue}
       onChange={handleChange}
