@@ -58,7 +58,7 @@ export default function ProductSelector({ quoteId, onTotalCalculated }: ProductS
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quote-products", quoteId] });
       setProductName("");
-      setSaleValue("");
+      setSaleValue(0);
       setIsAddingProduct(false);
       toast({ title: "Produto adicionado com sucesso!" });
     },
