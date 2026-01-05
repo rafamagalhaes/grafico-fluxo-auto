@@ -1,13 +1,25 @@
-import { useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, Package, DollarSign, TrendingUp } from "lucide-react";
+import { Users, FileText, Package, DollarSign, TrendingUp, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/use-user-role";
+import { useDashboardAutoRefresh } from "@/hooks/use-auto-refresh";
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
   const { data: userRole } = useUserRole();
+  
+  const refetchAllDashboardData = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-pending-quotes"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-pending-orders"] });
+  }, [queryClient]);
+
+  const autoRefreshInterval = useDashboardAutoRefresh(refetchAllDashboardData);
+
   const { data: stats } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
@@ -157,11 +169,30 @@ export default function Dashboard() {
     return delivery.getTime() <= tomorrow.getTime();
   };
 
+  const getRefreshIntervalLabel = () => {
+    const labels: Record<number, string> = {
+      1: "1 min",
+      5: "5 min",
+      10: "10 min",
+      30: "30 min",
+      60: "1h",
+    };
+    return labels[autoRefreshInterval] || null;
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">Visão geral do sistema</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">Visão geral do sistema</p>
+        </div>
+        {autoRefreshInterval > 0 && (
+          <Badge variant="secondary" className="flex items-center gap-1">
+            <RefreshCw className="h-3 w-3 animate-spin" style={{ animationDuration: "3s" }} />
+            Auto refresh: {getRefreshIntervalLabel()}
+          </Badge>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

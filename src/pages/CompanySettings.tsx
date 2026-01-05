@@ -2,17 +2,39 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserCompany } from "@/hooks/use-user-company";
+import { useAutoRefresh, AutoRefreshInterval } from "@/hooks/use-auto-refresh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Upload, Trash2 } from "lucide-react";
+import { Upload, Trash2, RefreshCw } from "lucide-react";
 
 export default function CompanySettings() {
   const { data: userCompany } = useUserCompany();
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
+  const { interval: autoRefreshInterval, setInterval: setAutoRefreshInterval } = useAutoRefresh();
+
+  const refreshIntervalOptions = [
+    { value: "0", label: "Desativado" },
+    { value: "1", label: "1 minuto" },
+    { value: "5", label: "5 minutos" },
+    { value: "10", label: "10 minutos" },
+    { value: "30", label: "30 minutos" },
+    { value: "60", label: "1 hora" },
+  ];
+
+  const handleRefreshIntervalChange = (value: string) => {
+    const newInterval = parseInt(value, 10) as AutoRefreshInterval;
+    setAutoRefreshInterval(newInterval);
+    toast.success(
+      newInterval === 0
+        ? "Auto refresh desativado"
+        : `Auto refresh configurado para ${refreshIntervalOptions.find(o => o.value === value)?.label}`
+    );
+  };
 
   const { data: company } = useQuery({
     queryKey: ["company", userCompany?.company_id],
@@ -177,6 +199,41 @@ export default function CompanySettings() {
             </div>
             <p className="text-sm text-muted-foreground">
               Formatos aceitos: PNG, JPG, GIF. Tamanho máximo: 2MB
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5" />
+            Auto Refresh do Dashboard
+          </CardTitle>
+          <CardDescription>
+            Configure a atualização automática dos dados do Dashboard
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Intervalo de Atualização</Label>
+            <Select
+              value={String(autoRefreshInterval)}
+              onValueChange={handleRefreshIntervalChange}
+            >
+              <SelectTrigger className="w-full md:w-[300px]">
+                <SelectValue placeholder="Selecione o intervalo" />
+              </SelectTrigger>
+              <SelectContent>
+                {refreshIntervalOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Quando ativado, o Dashboard será atualizado automaticamente no intervalo configurado.
             </p>
           </div>
         </CardContent>
