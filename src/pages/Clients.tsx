@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUserCompany } from "@/hooks/use-user-company";
 import { z } from "zod";
 import { ClientForm } from "@/components/clients/ClientForm";
+import { ClientViewModal } from "@/components/clients/ClientViewModal";
 
 // Schema for Pessoa Física - phone is required
 const clientSchemaFisica = z.object({
@@ -79,6 +80,7 @@ const formatCNPJ = (value: string) => {
 export default function Clients() {
   const [open, setOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [viewingClient, setViewingClient] = useState<Client | null>(null);
   const [clientType, setClientType] = useState<"fisica" | "juridica">("fisica");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -307,10 +309,19 @@ export default function Clients() {
                         <Button
                           variant="outline"
                           size="icon"
+                          onClick={() => setViewingClient(client)}
+                          title="Visualizar"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon"
                           onClick={() => {
                             setEditingClient(client);
                             setOpen(true);
                           }}
+                          title="Editar"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -322,6 +333,7 @@ export default function Clients() {
                               deleteMutation.mutate(client.id);
                             }
                           }}
+                          title="Excluir"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -334,6 +346,12 @@ export default function Clients() {
           )}
         </CardContent>
       </Card>
+
+      <ClientViewModal
+        client={viewingClient}
+        open={!!viewingClient}
+        onOpenChange={(open) => !open && setViewingClient(null)}
+      />
     </div>
   );
 }
