@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,6 +58,42 @@ export function ClientForm({
 }: ClientFormProps) {
   const [contactModalOpen, setContactModalOpen] = useState(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
+
+  // Fetch existing contacts when editing a client
+  const { data: existingContacts } = useQuery({
+    queryKey: ["client-contacts", editingClient?.id],
+    queryFn: async () => {
+      if (!editingClient?.id) return [];
+      const { data, error } = await supabase
+        .from("client_contacts")
+        .select("*")
+        .eq("client_id", editingClient.id);
+      if (error) throw error;
+      return data.map((c) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone || "",
+        whatsapp: c.whatsapp || "",
+        email: c.email || "",
+        position: c.position || "",
+      }));
+    },
+    enabled: !!editingClient?.id,
+  });
+
+  // Update contacts state when existing contacts are loaded
+  useEffect(() => {
+    if (existingContacts) {
+      setContacts(existingContacts);
+    }
+  }, [existingContacts]);
+
+  // Reset contacts when not editing
+  useEffect(() => {
+    if (!editingClient) {
+      setContacts([]);
+    }
+  }, [editingClient]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
