@@ -4,31 +4,52 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useUserCompany } from "@/hooks/use-user-company";
 import { z } from "zod";
+import { ClientForm } from "@/components/clients/ClientForm";
 
-const clientSchema = z.object({
+// Schema for Pessoa Física - phone is required
+const clientSchemaFisica = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
   phone: z.string().min(1, "Telefone é obrigatório"),
   email: z.string().email("E-mail inválido").optional().or(z.literal("")),
   birth_date: z.string().optional(),
-  client_type: z.enum(["fisica", "juridica"]),
+  client_type: z.literal("fisica"),
   cnpj: z.string().optional(),
+  address: z.string().optional(),
 });
+
+// Schema for Pessoa Jurídica - CNPJ is required, phone is optional
+const clientSchemaJuridica = z.object({
+  name: z.string().min(1, "Razão Social é obrigatória"),
+  phone: z.string().optional().or(z.literal("")),
+  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
+  birth_date: z.string().optional(),
+  client_type: z.literal("juridica"),
+  cnpj: z.string().min(1, "CNPJ é obrigatório"),
+  address: z.string().optional(),
+});
+
+type Contact = {
+  id?: string;
+  name: string;
+  phone: string;
+  whatsapp: string;
+  email: string;
+  position: string;
+};
 
 type ClientInput = {
   name: string;
-  phone: string;
+  phone?: string;
   email?: string;
   birth_date?: string;
   client_type: "fisica" | "juridica";
   cnpj?: string;
+  address?: string;
 };
 
 type Client = {
@@ -40,6 +61,7 @@ type Client = {
   birth_date: string | null;
   client_type?: "fisica" | "juridica";
   cnpj?: string | null;
+  address?: string | null;
 };
 
 const formatCNPJ = (value: string) => {
@@ -74,11 +96,49 @@ export default function Clients() {
     },
   });
 
+  const saveContactsMutation = useMutation({
+    mutationFn: async ({ clientId, contacts }: { clientId: string; contacts: Contact[] }) => {
+      // First delete existing contacts
+      await supabase.from("client_contacts").delete().eq("client_id", clientId);
+      
+      // Then insert new contacts
+      if (contacts.length > 0) {
+        const contactsToInsert = contacts.map((c) => ({
+          client_id: clientId,
+          name: c.name,
+          phone: c.phone || null,
+          whatsapp: c.whatsapp || null,
+          email: c.email || null,
+          position: c.position || null,
+        }));
+        const { error } = await supabase.from("client_contacts").insert(contactsToInsert);
+        if (error) throw error;
+      }
+    },
+  });
+
   const createMutation = useMutation({
-    mutationFn: async (data: ClientInput) => {
+    mutationFn: async ({ data, contacts }: { data: ClientInput; contacts: Contact[] }) => {
       if (!userCompany?.company_id) throw new Error("Company not found");
-      const { error } = await supabase.from("clients").insert([{ ...data, company_id: userCompany.company_id }]);
+      
+      const insertData = {
+        ...data,
+        phone: data.phone || "",
+        company_id: userCompany.company_id,
+      };
+      
+      const { data: newClient, error } = await supabase
+        .from("clients")
+        .insert([insertData])
+        .select()
+        .single();
+      
       if (error) throw error;
+      
+      // Save contacts if any
+      if (contacts.length > 0 && newClient) {
+        await saveContactsMutation.mutateAsync({ clientId: newClient.id, contacts });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
@@ -91,9 +151,17 @@ export default function Clients() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: ClientInput }) => {
-      const { error } = await supabase.from("clients").update(data).eq("id", id);
+    mutationFn: async ({ id, data, contacts }: { id: string; data: ClientInput; contacts: Contact[] }) => {
+      const updateData = {
+        ...data,
+        phone: data.phone || "",
+      };
+      
+      const { error } = await supabase.from("clients").update(updateData).eq("id", id);
       if (error) throw error;
+      
+      // Save contacts
+      await saveContactsMutation.mutateAsync({ clientId: id, contacts });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
@@ -120,18 +188,20 @@ export default function Clients() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    
+  const handleFormSubmit = (formData: FormData, contacts: Contact[]) => {
     const rawData: ClientInput = {
       name: formData.get("name") as string,
-      phone: formData.get("phone") as string,
       client_type: clientType,
     };
 
+    const phone = formData.get("phone") as string;
+    if (phone) rawData.phone = phone;
+
     const email = formData.get("email") as string;
     if (email) rawData.email = email;
+
+    const address = formData.get("address") as string;
+    if (address) rawData.address = address;
 
     // Only include birth_date for Pessoa Física
     if (clientType === "fisica") {
@@ -145,15 +215,25 @@ export default function Clients() {
     if (cnpj) rawData.cnpj = cnpj.replace(/\D/g, "");
 
     try {
-      clientSchema.parse(rawData);
-      if (editingClient) {
-        updateMutation.mutate({ id: editingClient.id, data: rawData });
+      // Use different schema based on client type
+      if (clientType === "fisica") {
+        clientSchemaFisica.parse(rawData);
       } else {
-        createMutation.mutate(rawData);
+        clientSchemaJuridica.parse(rawData);
+      }
+      
+      if (editingClient) {
+        updateMutation.mutate({ id: editingClient.id, data: rawData, contacts });
+      } else {
+        createMutation.mutate({ data: rawData, contacts });
       }
     } catch (error) {
       console.error("Validation error:", error);
-      toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
+      if (clientType === "juridica") {
+        toast({ title: "CNPJ e Razão Social são obrigatórios", variant: "destructive" });
+      } else {
+        toast({ title: "Nome e Telefone são obrigatórios", variant: "destructive" });
+      }
     }
   };
 
@@ -178,73 +258,17 @@ export default function Clients() {
               Novo Cliente
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingClient ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label>Tipo de Cliente *</Label>
-                <RadioGroup
-                  name="client_type"
-                  value={clientType}
-                  onValueChange={(value) => setClientType(value as "fisica" | "juridica")}
-                  className="flex gap-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="fisica" id="fisica" />
-                    <Label htmlFor="fisica" className="font-normal cursor-pointer">Pessoa Física</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="juridica" id="juridica" />
-                    <Label htmlFor="juridica" className="font-normal cursor-pointer">Pessoa Jurídica</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              <div>
-                <Label htmlFor="name">Nome *</Label>
-                <Input id="name" name="name" required defaultValue={editingClient?.name || ""} />
-              </div>
-              {clientType === "juridica" && (
-                <div>
-                  <Label htmlFor="cnpj">CNPJ</Label>
-                  <Input
-                    id="cnpj"
-                    name="cnpj"
-                    defaultValue={editingClient?.cnpj ? formatCNPJ(editingClient.cnpj) : ""}
-                    onChange={(e) => {
-                      e.target.value = formatCNPJ(e.target.value);
-                    }}
-                    maxLength={18}
-                    placeholder="00.000.000/0000-00"
-                  />
-                </div>
-              )}
-              <div>
-                <Label htmlFor="phone">Telefone *</Label>
-                <Input id="phone" name="phone" required defaultValue={editingClient?.phone || ""} />
-              </div>
-              <div>
-                <Label htmlFor="email">E-mail</Label>
-                <Input id="email" name="email" type="email" defaultValue={editingClient?.email || ""} placeholder="exemplo@email.com" />
-              </div>
-              {clientType === "fisica" && (
-                <div>
-                  <Label htmlFor="birth_date">Data de Nascimento</Label>
-                  <Input id="birth_date" name="birth_date" type="date" defaultValue={editingClient?.birth_date || ""} />
-                </div>
-              )}
-              {editingClient && (
-                <div>
-                  <Label>Código</Label>
-                  <Input value={editingClient.code || "Gerado automaticamente"} disabled />
-                  <p className="text-xs text-muted-foreground mt-1">Código gerado automaticamente pelo sistema</p>
-                </div>
-              )}
-              <Button type="submit" className="w-full">
-                {editingClient ? "Atualizar" : "Criar"}
-              </Button>
-            </form>
+            <ClientForm
+              editingClient={editingClient}
+              clientType={clientType}
+              onClientTypeChange={setClientType}
+              onSubmit={handleFormSubmit}
+              isSubmitting={createMutation.isPending || updateMutation.isPending}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -262,11 +286,10 @@ export default function Clients() {
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Tipo</TableHead>
-                  <TableHead>Nome</TableHead>
+                  <TableHead>Nome / Razão Social</TableHead>
                   <TableHead>CNPJ</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>E-mail</TableHead>
-                  <TableHead>Data de Nascimento</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -277,9 +300,8 @@ export default function Clients() {
                     <TableCell>{client.client_type === "fisica" ? "Física" : "Jurídica"}</TableCell>
                     <TableCell>{client.name}</TableCell>
                     <TableCell>{client.cnpj ? formatCNPJ(client.cnpj) : "-"}</TableCell>
-                    <TableCell>{client.phone}</TableCell>
+                    <TableCell>{client.phone || "-"}</TableCell>
                     <TableCell>{client.email || "-"}</TableCell>
-                    <TableCell>{client.birth_date ? new Date(client.birth_date).toLocaleDateString("pt-BR") : "-"}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
