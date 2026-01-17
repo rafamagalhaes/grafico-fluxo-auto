@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
+import Leads from "./pages/Leads";
 import Clients from "./pages/Clients";
 import Quotes from "./pages/Quotes";
 import Orders from "./pages/Orders";
@@ -74,6 +75,16 @@ const App = () => {
                 <ProtectedRoute session={session}>
                   <AppLayout>
                     <Dashboard />
+                  </AppLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/leads"
+              element={
+                <ProtectedRoute session={session}>
+                  <AppLayout>
+                    <Leads />
                   </AppLayout>
                 </ProtectedRoute>
               }
