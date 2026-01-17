@@ -1,21 +1,26 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, Package, DollarSign, TrendingUp, RefreshCw } from "lucide-react";
+import { Users, FileText, Package, DollarSign, TrendingUp, RefreshCw, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useDashboardAutoRefresh } from "@/hooks/use-auto-refresh";
+import { LeadViewModal } from "@/components/leads/LeadViewModal";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const { data: userRole } = useUserRole();
+  const [selectedLead, setSelectedLead] = useState<any | null>(null);
+  const [leadModalOpen, setLeadModalOpen] = useState(false);
   
   const refetchAllDashboardData = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
     queryClient.invalidateQueries({ queryKey: ["dashboard-pending-quotes"] });
     queryClient.invalidateQueries({ queryKey: ["dashboard-pending-orders"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-leads-to-contact"] });
+    queryClient.invalidateQueries({ queryKey: ["dashboard-leads-second-contact"] });
   }, [queryClient]);
 
   const autoRefreshInterval = useDashboardAutoRefresh(refetchAllDashboardData);
@@ -95,6 +100,44 @@ export default function Dashboard() {
       }));
     },
   });
+
+  // Leads sem contato inicial (first_contact_date IS NULL)
+  const { data: leadsToContact } = useQuery({
+    queryKey: ["dashboard-leads-to-contact"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("leads")
+        .select("*")
+        .is("first_contact_date", null)
+        .neq("funnel_stage", "descartado")
+        .order("created_at", { ascending: true });
+      return data || [];
+    },
+  });
+
+  // Leads aptos para segundo contato (primeiro contato há 7 dias, sem segundo contato)
+  const { data: leadsSecondContact } = useQuery({
+    queryKey: ["dashboard-leads-second-contact"],
+    queryFn: async () => {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const dateStr = sevenDaysAgo.toISOString().split("T")[0];
+
+      const { data } = await supabase
+        .from("leads")
+        .select("*")
+        .lte("first_contact_date", dateStr)
+        .is("second_contact_date", null)
+        .neq("funnel_stage", "descartado")
+        .order("first_contact_date", { ascending: true });
+      return data || [];
+    },
+  });
+
+  const handleLeadClick = (lead: any) => {
+    setSelectedLead(lead);
+    setLeadModalOpen(true);
+  };
 
   const allCards = [
     {
@@ -212,6 +255,90 @@ export default function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-blue-500" />
+              Leads para Contatar
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!leadsToContact || leadsToContact.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">Nenhum lead pendente de contato</p>
+            ) : (
+              <div className="space-y-2">
+                {leadsToContact.map((lead) => (
+                  <div
+                    key={lead.id}
+                    className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleLeadClick(lead)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{lead.code}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          Sem contato
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate mt-1">
+                        {lead.razao_social}
+                      </p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="text-xs text-muted-foreground">
+                        Criado em {new Date(lead.created_at).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-yellow-500" />
+              Leads para 2º Contato
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!leadsSecondContact || leadsSecondContact.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">Nenhum lead apto para segundo contato</p>
+            ) : (
+              <div className="space-y-2">
+                {leadsSecondContact.map((lead) => (
+                  <div
+                    key={lead.id}
+                    className="flex items-center justify-between p-3 rounded-lg border cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleLeadClick(lead)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{lead.code}</span>
+                        <Badge variant="outline" className="text-xs">
+                          Aguardando 2º contato
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate mt-1">
+                        {lead.razao_social}
+                      </p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="text-xs text-muted-foreground">
+                        1º contato: {new Date(lead.first_contact_date).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
             <CardTitle>Orçamentos Pendentes</CardTitle>
           </CardHeader>
           <CardContent>
@@ -300,6 +427,12 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <LeadViewModal
+        lead={selectedLead}
+        open={leadModalOpen}
+        onOpenChange={setLeadModalOpen}
+      />
     </div>
   );
 }

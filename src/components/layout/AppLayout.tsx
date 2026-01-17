@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, FileText, Package, DollarSign, LogOut, UserCog, Building2, CreditCard, Settings } from "lucide-react";
+import { LayoutDashboard, Users, FileText, Package, DollarSign, LogOut, UserCog, Building2, CreditCard, Settings, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Leads", href: "/leads", icon: Target },
   { name: "Clientes", href: "/clients", icon: Users },
   { name: "Orçamentos", href: "/quotes", icon: FileText },
   { name: "Pedidos", href: "/orders", icon: Package },

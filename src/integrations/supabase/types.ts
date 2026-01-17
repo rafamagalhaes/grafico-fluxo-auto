@@ -273,6 +273,106 @@ export type Database = {
           },
         ]
       }
+      lead_contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          lead_id: string
+          name: string
+          phone: string | null
+          position: string | null
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          lead_id: string
+          name: string
+          phone?: string | null
+          position?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          lead_id?: string
+          name?: string
+          phone?: string | null
+          position?: string | null
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_contacts_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          cargo: string | null
+          cnpj: string | null
+          code: string | null
+          company_id: string | null
+          created_at: string
+          endereco: string | null
+          first_contact_date: string | null
+          funnel_stage: string
+          id: string
+          owner_id: string
+          razao_social: string
+          second_contact_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          cargo?: string | null
+          cnpj?: string | null
+          code?: string | null
+          company_id?: string | null
+          created_at?: string
+          endereco?: string | null
+          first_contact_date?: string | null
+          funnel_stage?: string
+          id?: string
+          owner_id: string
+          razao_social: string
+          second_contact_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cargo?: string | null
+          cnpj?: string | null
+          code?: string | null
+          company_id?: string | null
+          created_at?: string
+          endereco?: string | null
+          first_contact_date?: string | null
+          funnel_stage?: string
+          id?: string
+          owner_id?: string
+          razao_social?: string
+          second_contact_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plans: {
         Row: {
           created_at: string | null
