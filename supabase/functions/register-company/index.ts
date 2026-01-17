@@ -10,7 +10,7 @@ const registerSchema = z.object({
   company_name: z.string().min(2, "Nome da empresa deve ter no mínimo 2 caracteres"),
   cnpj: z.string().min(14, "CNPJ inválido").max(14, "CNPJ inválido"),
   email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+  password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres"),
 });
 
 Deno.serve(async (req) => {

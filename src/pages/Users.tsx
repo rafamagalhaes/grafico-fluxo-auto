@@ -16,7 +16,7 @@ import { z } from "zod";
 
 const userSchema = z.object({
   email: z.string().email("Email inválido"),
-  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
+  password: z.string().min(8, "Senha deve ter no mínimo 8 caracteres"),
   role: z.enum(["admin", "user"]),
   company_id: z.string().uuid("Empresa é obrigatória"),
 });
