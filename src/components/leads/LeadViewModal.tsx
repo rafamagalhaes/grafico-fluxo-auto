@@ -7,6 +7,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateBR } from "@/lib/utils";
 
 type Lead = {
   id: string;
@@ -98,17 +99,13 @@ export function LeadViewModal({ lead, open, onOpenChange }: LeadViewModalProps) 
             <div>
               <p className="text-sm text-muted-foreground">Data do 1º Contato</p>
               <p className="font-medium">
-                {lead.first_contact_date
-                  ? new Date(lead.first_contact_date).toLocaleDateString("pt-BR")
-                  : "-"}
+                {formatDateBR(lead.first_contact_date)}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Data do 2º Contato</p>
               <p className="font-medium">
-                {lead.second_contact_date
-                  ? new Date(lead.second_contact_date).toLocaleDateString("pt-BR")
-                  : "-"}
+                {formatDateBR(lead.second_contact_date)}
               </p>
             </div>
           </div>

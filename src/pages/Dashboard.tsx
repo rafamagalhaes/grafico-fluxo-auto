@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, Package, DollarSign, TrendingUp, RefreshCw, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, formatDateBR } from "@/lib/utils";
 import { useUserRole } from "@/hooks/use-user-role";
 import { useDashboardAutoRefresh } from "@/hooks/use-auto-refresh";
 import { LeadViewModal } from "@/components/leads/LeadViewModal";
@@ -325,7 +325,7 @@ export default function Dashboard() {
                     </div>
                     <div className="text-right ml-4">
                       <p className="text-xs text-muted-foreground">
-                        1º contato: {new Date(lead.first_contact_date).toLocaleDateString("pt-BR")}
+                        1º contato: {formatDateBR(lead.first_contact_date)}
                       </p>
                     </div>
                   </div>
