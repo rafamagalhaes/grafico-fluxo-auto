@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateBR } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -393,14 +394,10 @@ export default function Leads() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {lead.first_contact_date
-                      ? new Date(lead.first_contact_date).toLocaleDateString("pt-BR")
-                      : "-"}
+                    {formatDateBR(lead.first_contact_date)}
                   </TableCell>
                   <TableCell>
-                    {lead.second_contact_date
-                      ? new Date(lead.second_contact_date).toLocaleDateString("pt-BR")
-                      : "-"}
+                    {formatDateBR(lead.second_contact_date)}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
