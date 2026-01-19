@@ -18,8 +18,9 @@ export type Lead = {
   code?: string;
   cnpj: string;
   razao_social: string;
+  nome_fantasia: string;
   endereco: string;
-  cargo: string;
+  descricao: string;
   first_contact_date: string | null;
   second_contact_date: string | null;
   funnel_stage: string;
@@ -91,8 +92,9 @@ export function LeadForm({ editingLead, onSubmit, onCancel }: LeadFormProps) {
       id: editingLead?.id,
       cnpj: formData.get("cnpj") as string,
       razao_social: formData.get("razao_social") as string,
+      nome_fantasia: formData.get("nome_fantasia") as string,
       endereco: formData.get("endereco") as string,
-      cargo: formData.get("cargo") as string,
+      descricao: formData.get("descricao") as string,
       first_contact_date: (formData.get("first_contact_date") as string) || null,
       second_contact_date: (formData.get("second_contact_date") as string) || null,
       funnel_stage: formData.get("funnel_stage") as string,
@@ -129,26 +131,28 @@ export function LeadForm({ editingLead, onSubmit, onCancel }: LeadFormProps) {
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="endereco">Endereço</Label>
-          <Input
-            id="endereco"
-            name="endereco"
-            defaultValue={editingLead?.endereco || ""}
-            placeholder="Endereço completo"
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
+            <Input
+              id="nome_fantasia"
+              name="nome_fantasia"
+              defaultValue={editingLead?.nome_fantasia || ""}
+              placeholder="Nome fantasia da empresa"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="endereco">Endereço</Label>
+            <Input
+              id="endereco"
+              name="endereco"
+              defaultValue={editingLead?.endereco || ""}
+              placeholder="Endereço completo"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="cargo">Cargo</Label>
-            <Input
-              id="cargo"
-              name="cargo"
-              defaultValue={editingLead?.cargo || ""}
-              placeholder="Cargo do contato principal"
-            />
-          </div>
           <div className="space-y-2">
             <Label htmlFor="funnel_stage">Estágio no Funil *</Label>
             <Select
@@ -165,6 +169,15 @@ export function LeadForm({ editingLead, onSubmit, onCancel }: LeadFormProps) {
                 <SelectItem value="descartado">Descartado</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="descricao">Descrição</Label>
+            <Input
+              id="descricao"
+              name="descricao"
+              defaultValue={editingLead?.descricao || ""}
+              placeholder="Descrição do lead"
+            />
           </div>
         </div>
 

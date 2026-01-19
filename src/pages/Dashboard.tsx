@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, FileText, Package, DollarSign, TrendingUp, RefreshCw, Target } from "lucide-react";
@@ -11,6 +12,7 @@ import { LeadViewModal } from "@/components/leads/LeadViewModal";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { data: userRole } = useUserRole();
   const [selectedLead, setSelectedLead] = useState<any | null>(null);
   const [leadModalOpen, setLeadModalOpen] = useState(false);
@@ -137,6 +139,11 @@ export default function Dashboard() {
   const handleLeadClick = (lead: any) => {
     setSelectedLead(lead);
     setLeadModalOpen(true);
+  };
+
+  const handleEditLead = () => {
+    setLeadModalOpen(false);
+    navigate("/leads", { state: { editLeadId: selectedLead?.id } });
   };
 
   const allCards = [
@@ -432,6 +439,7 @@ export default function Dashboard() {
         lead={selectedLead}
         open={leadModalOpen}
         onOpenChange={setLeadModalOpen}
+        onEdit={handleEditLead}
       />
     </div>
   );

@@ -133,6 +133,7 @@ export type Database = {
           email: string | null
           id: string
           name: string
+          nome_fantasia: string | null
           phone: string
           updated_at: string | null
         }
@@ -147,6 +148,7 @@ export type Database = {
           email?: string | null
           id?: string
           name: string
+          nome_fantasia?: string | null
           phone: string
           updated_at?: string | null
         }
@@ -161,6 +163,7 @@ export type Database = {
           email?: string | null
           id?: string
           name?: string
+          nome_fantasia?: string | null
           phone?: string
           updated_at?: string | null
         }
@@ -324,10 +327,12 @@ export type Database = {
           code: string | null
           company_id: string | null
           created_at: string
+          descricao: string | null
           endereco: string | null
           first_contact_date: string | null
           funnel_stage: string
           id: string
+          nome_fantasia: string | null
           owner_id: string
           razao_social: string
           second_contact_date: string | null
@@ -339,10 +344,12 @@ export type Database = {
           code?: string | null
           company_id?: string | null
           created_at?: string
+          descricao?: string | null
           endereco?: string | null
           first_contact_date?: string | null
           funnel_stage?: string
           id?: string
+          nome_fantasia?: string | null
           owner_id: string
           razao_social: string
           second_contact_date?: string | null
@@ -354,10 +361,12 @@ export type Database = {
           code?: string | null
           company_id?: string | null
           created_at?: string
+          descricao?: string | null
           endereco?: string | null
           first_contact_date?: string | null
           funnel_stage?: string
           id?: string
+          nome_fantasia?: string | null
           owner_id?: string
           razao_social?: string
           second_contact_date?: string | null

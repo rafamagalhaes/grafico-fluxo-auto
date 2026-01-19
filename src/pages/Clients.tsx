@@ -31,6 +31,7 @@ const clientSchemaJuridica = z.object({
   birth_date: z.string().optional(),
   client_type: z.literal("juridica"),
   cnpj: z.string().min(1, "CNPJ é obrigatório"),
+  nome_fantasia: z.string().optional(),
   address: z.string().optional(),
 });
 
@@ -50,6 +51,7 @@ type ClientInput = {
   birth_date?: string;
   client_type: "fisica" | "juridica";
   cnpj?: string;
+  nome_fantasia?: string;
   address?: string;
 };
 
@@ -215,6 +217,9 @@ export default function Clients() {
 
     const cnpj = formData.get("cnpj") as string;
     if (cnpj) rawData.cnpj = cnpj.replace(/\D/g, "");
+
+    const nomeFantasia = formData.get("nome_fantasia") as string;
+    if (nomeFantasia) rawData.nome_fantasia = nomeFantasia;
 
     try {
       // Use different schema based on client type

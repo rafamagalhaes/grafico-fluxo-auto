@@ -26,6 +26,7 @@ type Client = {
   birth_date: string | null;
   client_type?: "fisica" | "juridica";
   cnpj?: string | null;
+  nome_fantasia?: string | null;
   address?: string | null;
 };
 
@@ -148,6 +149,15 @@ export function ClientForm({
                 }}
                 maxLength={18}
                 placeholder="00.000.000/0000-00"
+              />
+            </div>
+            <div>
+              <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
+              <Input
+                id="nome_fantasia"
+                name="nome_fantasia"
+                defaultValue={editingClient?.nome_fantasia || ""}
+                placeholder="Nome fantasia da empresa"
               />
             </div>
             <div>
