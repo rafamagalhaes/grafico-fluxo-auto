@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateBR } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ const funnelStageColors: Record<string, string> = {
 };
 
 export default function Leads() {
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [viewingLead, setViewingLead] = useState<any | null>(null);
@@ -75,6 +77,31 @@ export default function Leads() {
     },
   });
 
+  // Handle navigation state from Dashboard to edit a lead
+  useEffect(() => {
+    const editLeadId = location.state?.editLeadId;
+    if (editLeadId && leads) {
+      const leadToEdit = leads.find((l: any) => l.id === editLeadId);
+      if (leadToEdit) {
+        setEditingLead({
+          id: leadToEdit.id,
+          code: leadToEdit.code,
+          cnpj: leadToEdit.cnpj || "",
+          razao_social: leadToEdit.razao_social,
+          nome_fantasia: leadToEdit.nome_fantasia || "",
+          endereco: leadToEdit.endereco || "",
+          descricao: leadToEdit.descricao || "",
+          first_contact_date: leadToEdit.first_contact_date || "",
+          second_contact_date: leadToEdit.second_contact_date || "",
+          funnel_stage: leadToEdit.funnel_stage,
+        });
+        setOpen(true);
+        // Clear the state to prevent re-opening on subsequent renders
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state, leads]);
+
   const createMutation = useMutation({
     mutationFn: async ({ lead, contacts }: { lead: Lead; contacts: LeadContact[] }) => {
       const { data: userData } = await supabase.auth.getUser();
@@ -85,8 +112,9 @@ export default function Leads() {
         .insert({
           cnpj: lead.cnpj?.replace(/\D/g, "") || null,
           razao_social: lead.razao_social,
+          nome_fantasia: lead.nome_fantasia || null,
           endereco: lead.endereco || null,
-          cargo: lead.cargo || null,
+          descricao: lead.descricao || null,
           first_contact_date: lead.first_contact_date || null,
           second_contact_date: lead.second_contact_date || null,
           funnel_stage: lead.funnel_stage,
@@ -141,8 +169,9 @@ export default function Leads() {
         .update({
           cnpj: lead.cnpj?.replace(/\D/g, "") || null,
           razao_social: lead.razao_social,
+          nome_fantasia: lead.nome_fantasia || null,
           endereco: lead.endereco || null,
-          cargo: lead.cargo || null,
+          descricao: lead.descricao || null,
           first_contact_date: lead.first_contact_date || null,
           second_contact_date: lead.second_contact_date || null,
           funnel_stage: lead.funnel_stage,
@@ -298,8 +327,9 @@ export default function Leads() {
       code: lead.code,
       cnpj: lead.cnpj || "",
       razao_social: lead.razao_social,
+      nome_fantasia: lead.nome_fantasia || "",
       endereco: lead.endereco || "",
-      cargo: lead.cargo || "",
+      descricao: lead.descricao || "",
       first_contact_date: lead.first_contact_date || "",
       second_contact_date: lead.second_contact_date || "",
       funnel_stage: lead.funnel_stage,
