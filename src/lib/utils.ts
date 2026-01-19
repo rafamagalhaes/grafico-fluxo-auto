@@ -18,3 +18,15 @@ export function formatDateBR(dateString: string | null | undefined): string {
   
   return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
 }
+
+/**
+ * Formats a CNPJ string (only digits) to the standard format XX.XXX.XXX/XXXX-XX
+ */
+export function formatCNPJ(cnpj: string | null | undefined): string {
+  if (!cnpj) return "-";
+  
+  const numbers = cnpj.replace(/\D/g, "");
+  if (numbers.length !== 14) return cnpj;
+  
+  return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8, 12)}-${numbers.slice(12, 14)}`;
+}

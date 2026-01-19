@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateBR } from "@/lib/utils";
+import { formatDateBR, formatCNPJ } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -417,7 +417,7 @@ export default function Leads() {
                 <TableRow key={lead.id}>
                   <TableCell className="font-medium">{lead.code}</TableCell>
                   <TableCell>{lead.razao_social}</TableCell>
-                  <TableCell>{lead.cnpj || "-"}</TableCell>
+                  <TableCell>{formatCNPJ(lead.cnpj)}</TableCell>
                   <TableCell>
                     <Badge className={funnelStageColors[lead.funnel_stage] || ""}>
                       {funnelStageLabels[lead.funnel_stage] || lead.funnel_stage}
